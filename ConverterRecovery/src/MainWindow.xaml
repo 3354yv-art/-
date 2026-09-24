@@ -1,0 +1,949 @@
+<Window xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        Title="ממיר ומשחזר" Width="1280" Height="830" MinWidth="1040" MinHeight="660"
+        WindowStartupLocation="CenterScreen" FlowDirection="RightToLeft"
+        FontFamily="Segoe UI" FontSize="14" Background="#F4F6FB" Foreground="#1E293B"
+        UseLayoutRounding="True" TextOptions.TextFormattingMode="Display">
+  <Window.Resources>
+    <SolidColorBrush x:Key="Muted" Color="#64748B"/>
+    <SolidColorBrush x:Key="Blue" Color="#2563EB"/>
+    <SolidColorBrush x:Key="Purple" Color="#7C3AED"/>
+    <SolidColorBrush x:Key="Green" Color="#059669"/>
+
+    <Style x:Key="H1" TargetType="TextBlock">
+      <Setter Property="FontSize" Value="30"/>
+      <Setter Property="FontWeight" Value="Bold"/>
+      <Setter Property="Foreground" Value="#0F172A"/>
+    </Style>
+    <Style x:Key="Sub" TargetType="TextBlock">
+      <Setter Property="FontSize" Value="15"/>
+      <Setter Property="Foreground" Value="{StaticResource Muted}"/>
+      <Setter Property="TextWrapping" Value="Wrap"/>
+      <Setter Property="Margin" Value="0,6,0,24"/>
+    </Style>
+    <Style x:Key="H2" TargetType="TextBlock">
+      <Setter Property="FontSize" Value="18"/>
+      <Setter Property="FontWeight" Value="SemiBold"/>
+      <Setter Property="Foreground" Value="#0F172A"/>
+      <Setter Property="Margin" Value="0,0,0,12"/>
+    </Style>
+    <Style x:Key="Note" TargetType="TextBlock">
+      <Setter Property="Foreground" Value="{StaticResource Muted}"/>
+      <Setter Property="TextWrapping" Value="Wrap"/>
+      <Setter Property="Margin" Value="0,4,0,4"/>
+    </Style>
+    <Style x:Key="Label" TargetType="TextBlock">
+      <Setter Property="VerticalAlignment" Value="Center"/>
+      <Setter Property="Margin" Value="0,0,10,0"/>
+      <Setter Property="MinWidth" Value="120"/>
+    </Style>
+    <Style x:Key="Card" TargetType="Border">
+      <Setter Property="Background" Value="White"/>
+      <Setter Property="CornerRadius" Value="16"/>
+      <Setter Property="Padding" Value="24"/>
+      <Setter Property="Margin" Value="0,0,0,16"/>
+      <Setter Property="BorderBrush" Value="#E9EDF4"/>
+      <Setter Property="BorderThickness" Value="1"/>
+    </Style>
+    <Style x:Key="Warn" TargetType="Border">
+      <Setter Property="Background" Value="#FEF2F2"/>
+      <Setter Property="BorderBrush" Value="#FECACA"/>
+      <Setter Property="BorderThickness" Value="1"/>
+      <Setter Property="CornerRadius" Value="12"/>
+      <Setter Property="Padding" Value="16,12"/>
+      <Setter Property="Margin" Value="0,0,0,16"/>
+    </Style>
+    <Style x:Key="Info" TargetType="Border" BasedOn="{StaticResource Warn}">
+      <Setter Property="Background" Value="#EFF6FF"/>
+      <Setter Property="BorderBrush" Value="#BFDBFE"/>
+    </Style>
+    <Style x:Key="Row" TargetType="DockPanel">
+      <Setter Property="Margin" Value="0,6,0,6"/>
+      <Setter Property="LastChildFill" Value="False"/>
+    </Style>
+
+    <Style x:Key="Btn" TargetType="Button">
+      <Setter Property="Background" Value="#2563EB"/>
+      <Setter Property="Foreground" Value="White"/>
+      <Setter Property="FontWeight" Value="SemiBold"/>
+      <Setter Property="Padding" Value="22,9"/>
+      <Setter Property="Margin" Value="0,0,10,0"/>
+      <Setter Property="Cursor" Value="Hand"/>
+      <Setter Property="HorizontalContentAlignment" Value="Center"/>
+      <Setter Property="Template">
+        <Setter.Value>
+          <ControlTemplate TargetType="Button">
+            <Border x:Name="b" Background="{TemplateBinding Background}" CornerRadius="8" Padding="{TemplateBinding Padding}"
+                    BorderBrush="{TemplateBinding BorderBrush}" BorderThickness="{TemplateBinding BorderThickness}">
+              <ContentPresenter HorizontalAlignment="{TemplateBinding HorizontalContentAlignment}" VerticalAlignment="Center"/>
+            </Border>
+            <ControlTemplate.Triggers>
+              <Trigger Property="IsMouseOver" Value="True"><Setter TargetName="b" Property="Opacity" Value="0.88"/></Trigger>
+              <Trigger Property="IsPressed" Value="True"><Setter TargetName="b" Property="Opacity" Value="0.72"/></Trigger>
+              <Trigger Property="IsEnabled" Value="False"><Setter TargetName="b" Property="Opacity" Value="0.45"/></Trigger>
+            </ControlTemplate.Triggers>
+          </ControlTemplate>
+        </Setter.Value>
+      </Setter>
+    </Style>
+    <Style x:Key="Btn2" TargetType="Button" BasedOn="{StaticResource Btn}">
+      <Setter Property="Background" Value="#E2E8F0"/>
+      <Setter Property="Foreground" Value="#1E293B"/>
+      <Setter Property="FontWeight" Value="Normal"/>
+      <Setter Property="Padding" Value="18,8"/>
+    </Style>
+    <Style x:Key="BtnPurple" TargetType="Button" BasedOn="{StaticResource Btn}"><Setter Property="Background" Value="#7C3AED"/></Style>
+    <Style x:Key="BtnGreen" TargetType="Button" BasedOn="{StaticResource Btn}"><Setter Property="Background" Value="#059669"/></Style>
+    <Style x:Key="BtnDanger" TargetType="Button" BasedOn="{StaticResource Btn2}">
+      <Setter Property="Background" Value="#FEE2E2"/>
+      <Setter Property="Foreground" Value="#B91C1C"/>
+    </Style>
+    <Style x:Key="Tile" TargetType="Button">
+      <Setter Property="Background" Value="White"/>
+      <Setter Property="Foreground" Value="#1E293B"/>
+      <Setter Property="FontSize" Value="15"/>
+      <Setter Property="MinHeight" Value="54"/>
+      <Setter Property="Margin" Value="8"/>
+      <Setter Property="Padding" Value="14,8"/>
+      <Setter Property="Cursor" Value="Hand"/>
+      <Setter Property="HorizontalContentAlignment" Value="Center"/>
+      <Setter Property="Template">
+        <Setter.Value>
+          <ControlTemplate TargetType="Button">
+            <Border x:Name="b" Background="{TemplateBinding Background}" CornerRadius="12" Padding="{TemplateBinding Padding}"
+                    BorderBrush="#E6EAF1" BorderThickness="1">
+              <ContentPresenter HorizontalAlignment="{TemplateBinding HorizontalContentAlignment}" VerticalAlignment="Center"/>
+            </Border>
+            <ControlTemplate.Triggers>
+              <Trigger Property="IsMouseOver" Value="True">
+                <Setter TargetName="b" Property="BorderBrush" Value="#93C5FD"/>
+                <Setter TargetName="b" Property="Background" Value="#F7FAFF"/>
+              </Trigger>
+              <Trigger Property="IsPressed" Value="True"><Setter TargetName="b" Property="Background" Value="#EEF4FF"/></Trigger>
+            </ControlTemplate.Triggers>
+          </ControlTemplate>
+        </Setter.Value>
+      </Setter>
+    </Style>
+    <Style x:Key="BigTile" TargetType="Button" BasedOn="{StaticResource Tile}">
+      <Setter Property="HorizontalContentAlignment" Value="Stretch"/>
+      <Setter Property="Padding" Value="20,16"/>
+    </Style>
+
+    <Style x:Key="Nav" TargetType="RadioButton">
+      <Setter Property="Foreground" Value="#E2E8F0"/>
+      <Setter Property="FontSize" Value="15"/>
+      <Setter Property="Margin" Value="10,1"/>
+      <Setter Property="Cursor" Value="Hand"/>
+      <Setter Property="GroupName" Value="nav"/>
+      <Setter Property="Template">
+        <Setter.Value>
+          <ControlTemplate TargetType="RadioButton">
+            <Border x:Name="b" CornerRadius="8" Padding="18,9" Background="Transparent">
+              <ContentPresenter VerticalAlignment="Center"/>
+            </Border>
+            <ControlTemplate.Triggers>
+              <Trigger Property="IsMouseOver" Value="True"><Setter TargetName="b" Property="Background" Value="#2B3A52"/></Trigger>
+              <Trigger Property="IsChecked" Value="True">
+                <Setter TargetName="b" Property="Background" Value="#2563EB"/>
+                <Setter Property="Foreground" Value="White"/>
+              </Trigger>
+            </ControlTemplate.Triggers>
+          </ControlTemplate>
+        </Setter.Value>
+      </Setter>
+    </Style>
+    <Style x:Key="NavMain" TargetType="RadioButton" BasedOn="{StaticResource Nav}">
+      <Setter Property="FontSize" Value="16"/>
+      <Setter Property="FontWeight" Value="Bold"/>
+      <Setter Property="Margin" Value="10,3"/>
+    </Style>
+    <Style x:Key="NavHead" TargetType="TextBlock">
+      <Setter Property="Foreground" Value="#7C8BA3"/>
+      <Setter Property="FontSize" Value="12.5"/>
+      <Setter Property="FontWeight" Value="SemiBold"/>
+      <Setter Property="Margin" Value="28,20,28,6"/>
+    </Style>
+    <Style x:Key="Pill" TargetType="RadioButton">
+      <Setter Property="Foreground" Value="#334155"/>
+      <Setter Property="FontSize" Value="15"/>
+      <Setter Property="Margin" Value="0,0,10,0"/>
+      <Setter Property="Cursor" Value="Hand"/>
+      <Setter Property="Template">
+        <Setter.Value>
+          <ControlTemplate TargetType="RadioButton">
+            <Border x:Name="b" CornerRadius="20" Padding="22,9" Background="White" BorderBrush="#DCE3EC" BorderThickness="1">
+              <ContentPresenter VerticalAlignment="Center"/>
+            </Border>
+            <ControlTemplate.Triggers>
+              <Trigger Property="IsMouseOver" Value="True"><Setter TargetName="b" Property="BorderBrush" Value="#93C5FD"/></Trigger>
+              <Trigger Property="IsChecked" Value="True">
+                <Setter TargetName="b" Property="Background" Value="#1E293B"/>
+                <Setter TargetName="b" Property="BorderBrush" Value="#1E293B"/>
+                <Setter Property="Foreground" Value="White"/>
+              </Trigger>
+            </ControlTemplate.Triggers>
+          </ControlTemplate>
+        </Setter.Value>
+      </Setter>
+    </Style>
+
+    <Style TargetType="TextBox">
+      <Setter Property="Padding" Value="8,6"/>
+      <Setter Property="BorderBrush" Value="#CBD5E1"/>
+      <Setter Property="VerticalContentAlignment" Value="Center"/>
+    </Style>
+    <Style TargetType="CheckBox">
+      <Setter Property="Margin" Value="0,5,22,5"/>
+      <Setter Property="VerticalContentAlignment" Value="Center"/>
+    </Style>
+    <Style TargetType="RadioButton">
+      <Setter Property="Margin" Value="0,5,22,5"/>
+      <Setter Property="VerticalContentAlignment" Value="Center"/>
+    </Style>
+    <Style TargetType="ComboBox">
+      <Setter Property="Padding" Value="8,6"/>
+      <Setter Property="MinWidth" Value="220"/>
+      <Setter Property="VerticalContentAlignment" Value="Center"/>
+    </Style>
+    <Style TargetType="ListView">
+      <Setter Property="BorderBrush" Value="#E2E8F0"/>
+      <Setter Property="Background" Value="White"/>
+    </Style>
+    <Style TargetType="ListBox">
+      <Setter Property="BorderBrush" Value="#E2E8F0"/>
+      <Setter Property="Background" Value="White"/>
+    </Style>
+    <Style x:Key="Bar" TargetType="ProgressBar">
+      <Setter Property="Height" Value="8"/>
+      <Setter Property="Minimum" Value="0"/>
+      <Setter Property="Maximum" Value="1000"/>
+      <Setter Property="Template">
+        <Setter.Value>
+          <ControlTemplate TargetType="ProgressBar">
+            <Grid>
+              <Border x:Name="PART_Track" CornerRadius="4" Background="#E5E9F0"/>
+              <Border x:Name="PART_Indicator" CornerRadius="4" Background="#2563EB" HorizontalAlignment="Left" MinWidth="8"/>
+            </Grid>
+            <ControlTemplate.Triggers>
+              <Trigger Property="IsIndeterminate" Value="True">
+                <Trigger.EnterActions>
+                  <BeginStoryboard x:Name="pulse">
+                    <Storyboard>
+                      <DoubleAnimation Storyboard.TargetName="PART_Indicator" Storyboard.TargetProperty="Opacity"
+                                       From="0.2" To="0.8" Duration="0:0:0.9" AutoReverse="True" RepeatBehavior="Forever"/>
+                    </Storyboard>
+                  </BeginStoryboard>
+                </Trigger.EnterActions>
+                <Trigger.ExitActions><StopStoryboard BeginStoryboardName="pulse"/></Trigger.ExitActions>
+              </Trigger>
+            </ControlTemplate.Triggers>
+          </ControlTemplate>
+        </Setter.Value>
+      </Setter>
+    </Style>
+  </Window.Resources>
+
+  <Grid>
+    <Grid.ColumnDefinitions>
+      <ColumnDefinition Width="300"/>
+      <ColumnDefinition Width="*"/>
+    </Grid.ColumnDefinitions>
+
+    <!-- ===== תפריט צד ===== -->
+    <Border Grid.Column="0" Background="#1E293B">
+      <DockPanel>
+        <StackPanel DockPanel.Dock="Top" Margin="28,34,28,16">
+          <TextBlock Text="ממיר ומשחזר" FontSize="28" FontWeight="Bold" Foreground="White"/>
+          <TextBlock Text="שחזור, המרה והעברת קבצים" Foreground="#94A3B8" FontSize="13.5" Margin="0,6,0,0"/>
+        </StackPanel>
+        <TextBlock x:Name="VersionText" DockPanel.Dock="Bottom" Text="גרסה 3.0" Foreground="#64748B" FontSize="11.5" Margin="28,8,28,16"/>
+        <ScrollViewer VerticalScrollBarVisibility="Auto">
+          <StackPanel>
+            <RadioButton x:Name="N_Home" Style="{StaticResource NavMain}" Content="דף הבית" IsChecked="True"/>
+            <RadioButton x:Name="N_Recover" Style="{StaticResource NavMain}" Content="שחזור קבצים"/>
+            <RadioButton x:Name="N_Convert" Style="{StaticResource NavMain}" Content="המרת קבצים"/>
+            <RadioButton x:Name="N_Transfer" Style="{StaticResource NavMain}" Content="העברה ממחשב למחשב"/>
+            <TextBlock Style="{StaticResource NavHead}" Text="עוד דרכי שחזור"/>
+            <RadioButton x:Name="N_Bin" Style="{StaticResource Nav}" Content="סל המיחזור"/>
+            <RadioButton x:Name="N_Versions" Style="{StaticResource Nav}" Content="גרסאות קודמות"/>
+            <RadioButton x:Name="N_Unsaved" Style="{StaticResource Nav}" Content="מסמכים שלא נשמרו"/>
+            <RadioButton x:Name="N_Search" Style="{StaticResource Nav}" Content="קבצים שנעלמו"/>
+            <RadioButton x:Name="N_Deep" Style="{StaticResource Nav}" Content="סריקת עומק"/>
+            <TextBlock Style="{StaticResource NavHead}" Text="כונן פגום"/>
+            <RadioButton x:Name="N_Salvage" Style="{StaticResource Nav}" Content="העתקה מכונן פגום"/>
+            <RadioButton x:Name="N_Image" Style="{StaticResource Nav}" Content="גיבוי כונן לקובץ"/>
+            <RadioButton x:Name="N_Fix" Style="{StaticResource Nav}" Content="תיקון שגיאות בכונן"/>
+          </StackPanel>
+        </ScrollViewer>
+      </DockPanel>
+    </Border>
+
+    <!-- ===== אזור התוכן ===== -->
+    <Grid Grid.Column="1">
+      <Grid.RowDefinitions>
+        <RowDefinition Height="*"/>
+        <RowDefinition Height="Auto"/>
+        <RowDefinition Height="Auto"/>
+      </Grid.RowDefinitions>
+
+      <Grid Grid.Row="0">
+
+        <!-- ===== דף הבית ===== -->
+        <ScrollViewer x:Name="P_Home" VerticalScrollBarVisibility="Auto">
+          <StackPanel Margin="30,34,30,20">
+            <TextBlock Style="{StaticResource H1}" Text="שלום! מה נעשה היום?" Margin="8,0"/>
+            <TextBlock Style="{StaticResource Sub}" Text="בוחרים פעולה - והתוכנה תדריך אתכם צעד אחר צעד." Margin="8,8,8,20"/>
+            <UniformGrid Columns="3">
+              <Border Style="{StaticResource Card}" Margin="8">
+                <StackPanel>
+                  <Border Width="56" Height="56" CornerRadius="12" Background="{StaticResource Blue}" HorizontalAlignment="Left">
+                    <TextBlock Text="&#xE777;" FontFamily="Segoe MDL2 Assets" FontSize="26" Foreground="White" HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                  </Border>
+                  <TextBlock Text="שחזור קבצים" FontSize="22" FontWeight="Bold" Foreground="#0F172A" Margin="0,22,0,8"/>
+                  <TextBlock Style="{StaticResource Note}" Text="קבצים שנמחקו - עם השמות והתיקיות המקוריים" Height="42"/>
+                  <Button x:Name="HomeRecover" Style="{StaticResource Btn}" Content="כניסה" HorizontalAlignment="Right" Margin="0,14,0,0" Padding="38,10"/>
+                </StackPanel>
+              </Border>
+              <Border Style="{StaticResource Card}" Margin="8">
+                <StackPanel>
+                  <Border Width="56" Height="56" CornerRadius="12" Background="{StaticResource Purple}" HorizontalAlignment="Left">
+                    <TextBlock Text="&#xE8AB;" FontFamily="Segoe MDL2 Assets" FontSize="26" Foreground="White" HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                  </Border>
+                  <TextBlock Text="המרת קבצים" FontSize="22" FontWeight="Bold" Foreground="#0F172A" Margin="0,22,0,8"/>
+                  <TextBlock Style="{StaticResource Note}" Text="תמונות, שמע, וידאו, מסמכים ו-PDF" Height="42"/>
+                  <Button x:Name="HomeConvert" Style="{StaticResource BtnPurple}" Content="כניסה" HorizontalAlignment="Right" Margin="0,14,0,0" Padding="38,10"/>
+                </StackPanel>
+              </Border>
+              <Border Style="{StaticResource Card}" Margin="8">
+                <StackPanel>
+                  <Border Width="56" Height="56" CornerRadius="12" Background="{StaticResource Green}" HorizontalAlignment="Left">
+                    <TextBlock Text="&#xE7F4;" FontFamily="Segoe MDL2 Assets" FontSize="26" Foreground="White" HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                  </Border>
+                  <TextBlock Text="העברה ממחשב למחשב" FontSize="22" FontWeight="Bold" Foreground="#0F172A" Margin="0,22,0,8"/>
+                  <TextBlock Style="{StaticResource Note}" Text="כל הקבצים למחשב החדש - ברשת או בדיסק חיצוני" Height="42"/>
+                  <Button x:Name="HomeTransfer" Style="{StaticResource BtnGreen}" Content="כניסה" HorizontalAlignment="Right" Margin="0,14,0,0" Padding="38,10"/>
+                </StackPanel>
+              </Border>
+            </UniformGrid>
+            <TextBlock Style="{StaticResource H2}" Text="עוד כלים" Margin="8,26,8,6"/>
+            <UniformGrid Columns="4">
+              <Button x:Name="T_Bin" Style="{StaticResource Tile}" Content="סל המיחזור"/>
+              <Button x:Name="T_Versions" Style="{StaticResource Tile}" Content="גרסאות קודמות"/>
+              <Button x:Name="T_Unsaved" Style="{StaticResource Tile}" Content="מסמכים שלא נשמרו"/>
+              <Button x:Name="T_Search" Style="{StaticResource Tile}" Content="קבצים שנעלמו"/>
+              <Button x:Name="T_Deep" Style="{StaticResource Tile}" Content="סריקת עומק"/>
+              <Button x:Name="T_Salvage" Style="{StaticResource Tile}" Content="העתקה מכונן פגום"/>
+              <Button x:Name="T_Image" Style="{StaticResource Tile}" Content="גיבוי כונן לקובץ"/>
+              <Button x:Name="T_Fix" Style="{StaticResource Tile}" Content="תיקון שגיאות בכונן"/>
+            </UniformGrid>
+          </StackPanel>
+        </ScrollViewer>
+
+        <!-- ===== שחזור קבצים ===== -->
+        <ScrollViewer x:Name="P_Recover" VerticalScrollBarVisibility="Auto" Visibility="Collapsed">
+          <StackPanel Margin="38,34,38,20">
+            <TextBlock Style="{StaticResource H1}" Text="שחזור קבצים"/>
+            <TextBlock Style="{StaticResource Sub}" Text="מה קרה לקובץ? בחרו את המצב המתאים, והתוכנה תעביר אתכם לדרך השחזור הנכונה."/>
+            <UniformGrid Columns="3" Margin="-8,0,-8,8">
+              <Button x:Name="R_Bin" Style="{StaticResource BigTile}">
+                <StackPanel>
+                  <TextBlock Text="מחקתי רגיל" FontWeight="Bold" FontSize="16"/>
+                  <TextBlock Style="{StaticResource Note}" Text="הקובץ כנראה בסל המיחזור - חוזר במלואו, עם השם."/>
+                </StackPanel>
+              </Button>
+              <Button x:Name="R_Named" Style="{StaticResource BigTile}">
+                <StackPanel>
+                  <TextBlock Text="מחקתי לגמרי / רוקנתי את הסל" FontWeight="Bold" FontSize="16"/>
+                  <TextBlock Style="{StaticResource Note}" Text="שחזור מהכונן, עם השמות והתיקיות המקוריים."/>
+                </StackPanel>
+              </Button>
+              <Button x:Name="R_Versions" Style="{StaticResource BigTile}">
+                <StackPanel>
+                  <TextBlock Text="שמרתי מעל הקובץ" FontWeight="Bold" FontSize="16"/>
+                  <TextBlock Style="{StaticResource Note}" Text="החזרת גרסה קודמת של קובץ או תיקייה."/>
+                </StackPanel>
+              </Button>
+              <Button x:Name="R_Unsaved" Style="{StaticResource BigTile}">
+                <StackPanel>
+                  <TextBlock Text="סגרתי בלי לשמור" FontWeight="Bold" FontSize="16"/>
+                  <TextBlock Style="{StaticResource Note}" Text="Word, Excel, PowerPoint ופנקס הרשימות."/>
+                </StackPanel>
+              </Button>
+              <Button x:Name="R_Search" Style="{StaticResource BigTile}">
+                <StackPanel>
+                  <TextBlock Text="לא מוצא איפה שמרתי" FontWeight="Bold" FontSize="16"/>
+                  <TextBlock Style="{StaticResource Note}" Text="חיפוש בכל המחשב, כולל תיקיות מוסתרות."/>
+                </StackPanel>
+              </Button>
+              <Button x:Name="R_Deep" Style="{StaticResource BigTile}">
+                <StackPanel>
+                  <TextBlock Text="פרמטתי / הכונן לא נפתח" FontWeight="Bold" FontSize="16"/>
+                  <TextBlock Style="{StaticResource Note}" Text="סריקת עומק לפי סוג הקובץ - גם אחרי פרמוט."/>
+                </StackPanel>
+              </Button>
+            </UniformGrid>
+
+            <Border x:Name="NamedCard" Style="{StaticResource Card}">
+              <StackPanel>
+                <TextBlock Style="{StaticResource H2}" Text="שחזור קבצים שנמחקו - עם השמות והתיקיות המקוריים"/>
+                <TextBlock Style="{StaticResource Note}" Text="משתמש בכלי החינמי של מיקרוסופט (Windows File Recovery) ומפעיל אותו בשבילכם. מתאים לכונני NTFS (כמו כונן C)."/>
+                <TextBlock x:Name="WinfrStatus" Margin="0,10,0,6" TextWrapping="Wrap" FontWeight="SemiBold"/>
+                <StackPanel x:Name="WinfrInstallPanel" Orientation="Horizontal" Margin="0,4,0,4">
+                  <Button x:Name="WinfrInstall" Style="{StaticResource Btn}" Content="התקנת הכלי (חינם)"/>
+                  <Button x:Name="WinfrRecheck" Style="{StaticResource Btn2}" Content="בדוק שוב"/>
+                </StackPanel>
+                <StackPanel x:Name="WinfrForm">
+                  <DockPanel Style="{StaticResource Row}">
+                    <TextBlock Style="{StaticResource Label}" Text="הכונן שממנו נמחקו:"/>
+                    <ComboBox x:Name="WinfrDrive" Width="340"/>
+                  </DockPanel>
+                  <DockPanel Style="{StaticResource Row}">
+                    <TextBlock Style="{StaticResource Label}" Text="לשמור ב (כונן אחר):"/>
+                    <TextBox x:Name="WinfrDest" Width="420"/>
+                    <Button x:Name="WinfrBrowse" Style="{StaticResource Btn2}" Content="בחירה..." Margin="10,0,0,0"/>
+                  </DockPanel>
+                  <DockPanel Style="{StaticResource Row}">
+                    <TextBlock Style="{StaticResource Label}" Text="סוג סריקה:"/>
+                    <RadioButton x:Name="WinfrRegular" Content="מהירה - נמחקו לאחרונה" IsChecked="True"/>
+                    <RadioButton x:Name="WinfrExtensive" Content="יסודית - נמחקו מזמן / אחרי פרמוט"/>
+                  </DockPanel>
+                  <DockPanel Style="{StaticResource Row}">
+                    <TextBlock Style="{StaticResource Label}" Text="מה לחפש (לא חובה):"/>
+                    <TextBox x:Name="WinfrFilter" Width="420" FlowDirection="LeftToRight"/>
+                  </DockPanel>
+                  <TextBlock Style="{StaticResource Note}" Text="לדוגמה: *.docx  או  *.jpg  או  \Users\שם\Documents\  או שם קובץ. כמה אפשרויות מפרידים ב- ;  ריק = הכל."/>
+                  <StackPanel Orientation="Horizontal" Margin="0,12,0,0">
+                    <Button x:Name="WinfrStart" Style="{StaticResource Btn}" Content="התחל שחזור"/>
+                    <Button x:Name="WinfrOpen" Style="{StaticResource Btn2}" Content="פתח את התיקייה"/>
+                  </StackPanel>
+                </StackPanel>
+              </StackPanel>
+            </Border>
+
+            <Border Style="{StaticResource Card}">
+              <StackPanel>
+                <TextBlock Style="{StaticResource H2}" Text="לפני שמתחילים - חשוב לדעת"/>
+                <TextBlock Style="{StaticResource Note}" Text="1. הפסיקו להשתמש בכונן שממנו נמחקו הקבצים. כל קובץ חדש שנשמר עליו (הורדות, התקנות ואפילו גלישה) עלול לדרוס את מה שנמחק."/>
+                <TextBlock Style="{StaticResource Note}" Text="2. שמרו את הקבצים המשוחזרים תמיד על כונן אחר - דיסק-און-קי או דיסק חיצוני."/>
+                <TextBlock Style="{StaticResource Note}" Text="3. היה מסונכרן לענן? בדקו גם את סל המיחזור של OneDrive / Google Drive / Dropbox באתר - הם שומרים קבצים שנמחקו כ-30 יום."/>
+                <TextBlock Style="{StaticResource Note}" Text="4. בכונני SSD, Windows מנקה את השטח הפנוי זמן קצר אחרי המחיקה (TRIM) - פעלו מהר."/>
+                <TextBlock Style="{StaticResource Note}" Text="5. כונן שמשמיע רעשים, איטי מאוד או נתקע? אל תסרקו אותו שוב ושוב - קודם 'העתקה מכונן פגום' או 'גיבוי כונן לקובץ'."/>
+              </StackPanel>
+            </Border>
+          </StackPanel>
+        </ScrollViewer>
+
+        <!-- ===== המרת קבצים ===== -->
+        <ScrollViewer x:Name="P_Convert" VerticalScrollBarVisibility="Auto" Visibility="Collapsed">
+          <StackPanel Margin="38,34,38,20">
+            <TextBlock Style="{StaticResource H1}" Text="המרת קבצים"/>
+            <TextBlock Style="{StaticResource Sub}" Text="בוחרים סוג, מוסיפים קבצים (אפשר גם לגרור לכאן), בוחרים פורמט - ולוחצים המרה."/>
+            <StackPanel Orientation="Horizontal" Margin="0,0,0,18">
+              <RadioButton x:Name="CvImages" Style="{StaticResource Pill}" GroupName="cv" Content="תמונות" IsChecked="True"/>
+              <RadioButton x:Name="CvMedia" Style="{StaticResource Pill}" GroupName="cv" Content="שמע ווידאו"/>
+              <RadioButton x:Name="CvDocs" Style="{StaticResource Pill}" GroupName="cv" Content="מסמכים ו-PDF"/>
+            </StackPanel>
+
+            <Border Style="{StaticResource Card}">
+              <StackPanel>
+                <TextBlock Style="{StaticResource H2}" Text="1. בחירת קבצים"/>
+                <StackPanel Orientation="Horizontal" Margin="0,0,0,10">
+                  <Button x:Name="CvAddFiles" Style="{StaticResource Btn2}" Content="הוספת קבצים..."/>
+                  <Button x:Name="CvAddFolder" Style="{StaticResource Btn2}" Content="הוספת תיקייה..."/>
+                  <Button x:Name="CvRemove" Style="{StaticResource Btn2}" Content="הסרת המסומנים"/>
+                  <Button x:Name="CvClear" Style="{StaticResource Btn2}" Content="ניקוי הרשימה"/>
+                  <TextBlock x:Name="CvCount" VerticalAlignment="Center" Foreground="{StaticResource Muted}" Margin="10,0"/>
+                </StackPanel>
+                <ListBox x:Name="CvList" Height="190" SelectionMode="Extended" AllowDrop="True"/>
+                <TextBlock x:Name="CvHint" Style="{StaticResource Note}" Margin="0,8,0,0"/>
+              </StackPanel>
+            </Border>
+
+            <Border Style="{StaticResource Card}">
+              <StackPanel>
+                <TextBlock Style="{StaticResource H2}" Text="2. לאיזה פורמט להמיר?"/>
+                <DockPanel Style="{StaticResource Row}">
+                  <TextBlock Style="{StaticResource Label}" Text="פורמט יעד:"/>
+                  <ComboBox x:Name="CvFormat" Width="300"/>
+                </DockPanel>
+                <StackPanel x:Name="CvImgOptions">
+                  <DockPanel Style="{StaticResource Row}">
+                    <TextBlock Style="{StaticResource Label}" Text="איכות:"/>
+                    <ComboBox x:Name="CvQuality" Width="300"/>
+                  </DockPanel>
+                  <DockPanel Style="{StaticResource Row}">
+                    <TextBlock Style="{StaticResource Label}" Text="גודל תמונה:"/>
+                    <ComboBox x:Name="CvResize" Width="300"/>
+                  </DockPanel>
+                  <CheckBox x:Name="CvSinglePdf" Content="כל התמונות בקובץ PDF אחד (כל תמונה בעמוד)" IsChecked="True"/>
+                </StackPanel>
+                <StackPanel x:Name="CvMediaOptions" Visibility="Collapsed">
+                  <DockPanel Style="{StaticResource Row}">
+                    <TextBlock Style="{StaticResource Label}" Text="איכות:"/>
+                    <ComboBox x:Name="CvMediaQuality" Width="300"/>
+                  </DockPanel>
+                </StackPanel>
+                <Border x:Name="CvToolBox" Style="{StaticResource Info}" Margin="0,12,0,0">
+                  <DockPanel LastChildFill="True">
+                    <Button x:Name="CvToolInstall" DockPanel.Dock="Right" Style="{StaticResource Btn}" Content="התקנה" Margin="10,0,0,0" Visibility="Collapsed"/>
+                    <TextBlock x:Name="CvToolText" TextWrapping="Wrap" VerticalAlignment="Center"/>
+                  </DockPanel>
+                </Border>
+              </StackPanel>
+            </Border>
+
+            <Border Style="{StaticResource Card}">
+              <StackPanel>
+                <TextBlock Style="{StaticResource H2}" Text="3. לאן לשמור?"/>
+                <RadioButton x:Name="CvSameFolder" GroupName="cvout" Content="באותה תיקייה של הקובץ המקורי" IsChecked="True"/>
+                <DockPanel Style="{StaticResource Row}">
+                  <RadioButton x:Name="CvOtherFolder" GroupName="cvout" Content="בתיקייה:" VerticalAlignment="Center"/>
+                  <TextBox x:Name="CvOut" Width="420"/>
+                  <Button x:Name="CvBrowse" Style="{StaticResource Btn2}" Content="בחירה..." Margin="10,0,0,0"/>
+                </DockPanel>
+                <StackPanel Orientation="Horizontal" Margin="0,16,0,0">
+                  <Button x:Name="CvStart" Style="{StaticResource BtnPurple}" Content="המרה" Padding="44,10"/>
+                  <Button x:Name="CvOpen" Style="{StaticResource Btn2}" Content="פתח את התיקייה" IsEnabled="False"/>
+                </StackPanel>
+              </StackPanel>
+            </Border>
+          </StackPanel>
+        </ScrollViewer>
+
+        <!-- ===== העברה ממחשב למחשב ===== -->
+        <ScrollViewer x:Name="P_Transfer" VerticalScrollBarVisibility="Auto" Visibility="Collapsed">
+          <StackPanel Margin="38,34,38,20">
+            <TextBlock Style="{StaticResource H1}" Text="העברה ממחשב למחשב"/>
+            <TextBlock Style="{StaticResource Sub}" Text="מעבירים את הקבצים, הסימניות, רשתות ה-Wi-Fi ורשימת התוכנות למחשב החדש - דרך דיסק חיצוני או תיקייה משותפת ברשת."/>
+            <StackPanel Orientation="Horizontal" Margin="0,0,0,18">
+              <RadioButton x:Name="TrOld" Style="{StaticResource Pill}" GroupName="tr" Content="שלב 1: במחשב הישן - אריזה" IsChecked="True"/>
+              <RadioButton x:Name="TrNew" Style="{StaticResource Pill}" GroupName="tr" Content="שלב 2: במחשב החדש - פריסה"/>
+            </StackPanel>
+
+            <StackPanel x:Name="TrOldPanel">
+              <Border Style="{StaticResource Card}">
+                <StackPanel>
+                  <TextBlock Style="{StaticResource H2}" Text="מה להעביר?"/>
+                  <WrapPanel>
+                    <CheckBox x:Name="TrDesktop" Content="שולחן העבודה" IsChecked="True" Width="200"/>
+                    <CheckBox x:Name="TrDocuments" Content="מסמכים" IsChecked="True" Width="200"/>
+                    <CheckBox x:Name="TrPictures" Content="תמונות" IsChecked="True" Width="200"/>
+                    <CheckBox x:Name="TrVideos" Content="סרטונים" IsChecked="True" Width="200"/>
+                    <CheckBox x:Name="TrMusic" Content="מוזיקה" IsChecked="True" Width="200"/>
+                    <CheckBox x:Name="TrDownloads" Content="הורדות" IsChecked="True" Width="200"/>
+                    <CheckBox x:Name="TrFavorites" Content="מועדפים" IsChecked="True" Width="200"/>
+                  </WrapPanel>
+                  <TextBlock Style="{StaticResource H2}" Text="הגדרות" Margin="0,14,0,6" FontSize="15"/>
+                  <WrapPanel>
+                    <CheckBox x:Name="TrBookmarks" Content="סימניות של Chrome ו-Edge" IsChecked="True" Width="300"/>
+                    <CheckBox x:Name="TrWifi" Content="רשתות Wi-Fi והסיסמאות שלהן" IsChecked="True" Width="300"/>
+                    <CheckBox x:Name="TrApps" Content="רשימת התוכנות (להתקנה מחדש)" IsChecked="True" Width="300"/>
+                  </WrapPanel>
+                  <TextBlock Style="{StaticResource H2}" Text="תיקיות נוספות" Margin="0,14,0,6" FontSize="15"/>
+                  <ListBox x:Name="TrExtra" Height="80" SelectionMode="Extended"/>
+                  <StackPanel Orientation="Horizontal" Margin="0,8,0,0">
+                    <Button x:Name="TrExtraAdd" Style="{StaticResource Btn2}" Content="הוספת תיקייה..."/>
+                    <Button x:Name="TrExtraRemove" Style="{StaticResource Btn2}" Content="הסרה"/>
+                  </StackPanel>
+                </StackPanel>
+              </Border>
+              <Border Style="{StaticResource Card}">
+                <StackPanel>
+                  <TextBlock Style="{StaticResource H2}" Text="לאן לשמור?"/>
+                  <DockPanel Style="{StaticResource Row}">
+                    <TextBlock Style="{StaticResource Label}" Text="תיקיית יעד:"/>
+                    <TextBox x:Name="TrDest" Width="420"/>
+                    <Button x:Name="TrDestBrowse" Style="{StaticResource Btn2}" Content="בחירה..." Margin="10,0,0,0"/>
+                  </DockPanel>
+                  <TextBlock Style="{StaticResource Note}" Text="דיסק חיצוני, דיסק-און-קי, או תיקייה משותפת ברשת (למשל \\שם-המחשב-החדש\תיקייה). אם העצירה באמצע - הפעלה חוזרת ממשיכה מאיפה שנעצר."/>
+                  <StackPanel Orientation="Horizontal" Margin="0,14,0,0">
+                    <Button x:Name="TrPack" Style="{StaticResource BtnGreen}" Content="התחל אריזה" Padding="36,10"/>
+                    <Button x:Name="TrPackOpen" Style="{StaticResource Btn2}" Content="פתח את התיקייה" IsEnabled="False"/>
+                  </StackPanel>
+                </StackPanel>
+              </Border>
+            </StackPanel>
+
+            <StackPanel x:Name="TrNewPanel" Visibility="Collapsed">
+              <Border Style="{StaticResource Card}">
+                <StackPanel>
+                  <TextBlock Style="{StaticResource H2}" Text="איפה נמצאים הקבצים מהמחשב הישן?"/>
+                  <DockPanel Style="{StaticResource Row}">
+                    <TextBlock Style="{StaticResource Label}" Text="תיקיית ההעברה:"/>
+                    <TextBox x:Name="TrSrc" Width="420"/>
+                    <Button x:Name="TrSrcBrowse" Style="{StaticResource Btn2}" Content="בחירה..." Margin="10,0,0,0"/>
+                  </DockPanel>
+                  <TextBlock Style="{StaticResource Note}" Text="בוחרים את התיקייה שנוצרה בשלב 1 (שמה מתחיל ב'העברת קבצים')."/>
+                  <TextBlock x:Name="TrSrcInfo" Margin="0,10,0,4" FontWeight="SemiBold" TextWrapping="Wrap"/>
+                  <WrapPanel x:Name="TrItems" Margin="0,4,0,0"/>
+                </StackPanel>
+              </Border>
+              <Border Style="{StaticResource Card}">
+                <StackPanel>
+                  <TextBlock Style="{StaticResource H2}" Text="אפשרויות"/>
+                  <CheckBox x:Name="TrWifiImport" Content="ייבוא רשתות ה-Wi-Fi" IsChecked="True"/>
+                  <CheckBox x:Name="TrAppsImport" Content="התקנה מחדש של התוכנות (דרך winget של Windows - לוקח זמן)" IsChecked="False"/>
+                  <TextBlock Style="{StaticResource Note}" Text="קבצים שכבר קיימים ויש להם אותו תוכן - מדלגים. קבצים שונים באותו שם - נשמרים בשם חדש, בלי לדרוס כלום."/>
+                  <StackPanel Orientation="Horizontal" Margin="0,14,0,0">
+                    <Button x:Name="TrRestore" Style="{StaticResource BtnGreen}" Content="התחל פריסה" Padding="36,10"/>
+                  </StackPanel>
+                </StackPanel>
+              </Border>
+            </StackPanel>
+
+            <Border Style="{StaticResource Info}">
+              <StackPanel>
+                <TextBlock FontWeight="SemiBold" Text="העברה ברשת, בלי דיסק חיצוני:"/>
+                <TextBlock TextWrapping="Wrap" Margin="0,4,0,0" Text="במחשב החדש: לוחצים ימני על תיקייה ריקה ← מאפיינים ← שיתוף ← שיתוף... ומוסיפים את המשתמש. במחשב הישן: בשדה 'תיקיית יעד' כותבים \\שם-המחשב-החדש\שם-התיקייה. שני המחשבים צריכים להיות מחוברים לאותה רשת."/>
+              </StackPanel>
+            </Border>
+          </StackPanel>
+        </ScrollViewer>
+
+        <!-- ===== סל המיחזור ===== -->
+        <ScrollViewer x:Name="P_Bin" VerticalScrollBarVisibility="Auto" Visibility="Collapsed">
+          <StackPanel Margin="38,34,38,20">
+            <TextBlock Style="{StaticResource H1}" Text="סל המיחזור"/>
+            <TextBlock Style="{StaticResource Sub}" Text="קבצים שנמחקו רגיל (בלי Shift) נמצאים כאן, וחוזרים במלואם עם השם והמיקום המקוריים."/>
+            <Border Style="{StaticResource Card}">
+              <StackPanel>
+                <DockPanel Style="{StaticResource Row}" Margin="0,0,0,12">
+                  <TextBlock Style="{StaticResource Label}" Text="חיפוש:" MinWidth="0"/>
+                  <TextBox x:Name="BinFilter" Width="300"/>
+                  <Button x:Name="BinRefresh" Style="{StaticResource Btn2}" Content="חיפוש / רענון" Margin="10,0,0,0"/>
+                  <TextBlock x:Name="BinCount" VerticalAlignment="Center" Foreground="{StaticResource Muted}" Margin="14,0"/>
+                </DockPanel>
+                <ListView x:Name="BinList" Height="380" SelectionMode="Extended">
+                  <ListView.View>
+                    <GridView>
+                      <GridViewColumn Header="שם" Width="240" DisplayMemberBinding="{Binding Name}"/>
+                      <GridViewColumn Header="מיקום מקורי" Width="360" DisplayMemberBinding="{Binding Folder}"/>
+                      <GridViewColumn Header="נמחק בתאריך" Width="150" DisplayMemberBinding="{Binding DateText}"/>
+                      <GridViewColumn Header="גודל" Width="100" DisplayMemberBinding="{Binding SizeText}"/>
+                    </GridView>
+                  </ListView.View>
+                </ListView>
+                <TextBlock Style="{StaticResource Note}" Text="לבחירת כמה פריטים: Ctrl + לחיצה, או Shift + לחיצה לטווח." Margin="0,8,0,0"/>
+                <StackPanel Orientation="Horizontal" Margin="0,12,0,0">
+                  <Button x:Name="BinRestore" Style="{StaticResource Btn}" Content="שחזר למקום המקורי"/>
+                  <Button x:Name="BinCopy" Style="{StaticResource Btn2}" Content="העתק לתיקייה אחרת..."/>
+                  <Button x:Name="BinAll" Style="{StaticResource Btn2}" Content="בחר הכל"/>
+                </StackPanel>
+              </StackPanel>
+            </Border>
+          </StackPanel>
+        </ScrollViewer>
+
+        <!-- ===== גרסאות קודמות ===== -->
+        <ScrollViewer x:Name="P_Versions" VerticalScrollBarVisibility="Auto" Visibility="Collapsed">
+          <StackPanel Margin="38,34,38,20">
+            <TextBlock Style="{StaticResource H1}" Text="גרסאות קודמות"/>
+            <TextBlock Style="{StaticResource Sub}" Text="Windows שומר מדי פעם 'צילום' של הכונן (נקודות שחזור). מכאן פותחים צילום ישן ולוקחים ממנו את הגרסה הקודמת של הקובץ."/>
+            <Border Style="{StaticResource Card}">
+              <StackPanel>
+                <DockPanel Style="{StaticResource Row}">
+                  <TextBlock Style="{StaticResource Label}" Text="התיקייה של הקובץ:"/>
+                  <TextBox x:Name="VerFolder" Width="420"/>
+                  <Button x:Name="VerBrowse" Style="{StaticResource Btn2}" Content="בחירה..." Margin="10,0,0,0"/>
+                  <Button x:Name="VerFind" Style="{StaticResource Btn}" Content="חפש גרסאות" Margin="10,0,0,0"/>
+                </DockPanel>
+                <ListView x:Name="VerList" Height="260" Margin="0,12,0,0" SelectionMode="Single">
+                  <ListView.View>
+                    <GridView>
+                      <GridViewColumn Header="תאריך הצילום" Width="200" DisplayMemberBinding="{Binding DateText}"/>
+                      <GridViewColumn Header="כונן" Width="80" DisplayMemberBinding="{Binding Drive}"/>
+                      <GridViewColumn Header="לפני" Width="160" DisplayMemberBinding="{Binding Age}"/>
+                    </GridView>
+                  </ListView.View>
+                </ListView>
+                <TextBlock x:Name="VerInfo" Style="{StaticResource Note}" Margin="0,8,0,0"/>
+                <StackPanel Orientation="Horizontal" Margin="0,12,0,0">
+                  <Button x:Name="VerOpen" Style="{StaticResource Btn}" Content="פתח את הגרסה בסייר הקבצים"/>
+                  <Button x:Name="VerCopy" Style="{StaticResource Btn2}" Content="העתק את התיקייה מהגרסה הזו..."/>
+                </StackPanel>
+              </StackPanel>
+            </Border>
+            <Border Style="{StaticResource Card}">
+              <StackPanel>
+                <TextBlock Style="{StaticResource H2}" Text="עוד אפשרויות"/>
+                <TextBlock Style="{StaticResource Note}" Text="אין צילומים? כנראה ש'הגנת מערכת' כבויה. כדאי להפעיל אותה עכשיו - כדי שבפעם הבאה תהיה גרסה קודמת לחזור אליה."/>
+                <WrapPanel Margin="0,10,0,0">
+                  <Button x:Name="VerHistory" Style="{StaticResource Btn2}" Content="היסטוריית קבצים" Margin="0,0,10,8"/>
+                  <Button x:Name="VerProtection" Style="{StaticResource Btn2}" Content="הגדרות הגנת מערכת" Margin="0,0,10,8"/>
+                  <Button x:Name="VerCreate" Style="{StaticResource Btn2}" Content="צור נקודת שחזור עכשיו" Margin="0,0,10,8"/>
+                </WrapPanel>
+              </StackPanel>
+            </Border>
+          </StackPanel>
+        </ScrollViewer>
+
+        <!-- ===== מסמכים שלא נשמרו ===== -->
+        <ScrollViewer x:Name="P_Unsaved" VerticalScrollBarVisibility="Auto" Visibility="Collapsed">
+          <StackPanel Margin="38,34,38,20">
+            <TextBlock Style="{StaticResource H1}" Text="מסמכים שלא נשמרו"/>
+            <TextBlock Style="{StaticResource Sub}" Text="Word, Excel, PowerPoint, פנקס הרשימות ו-Notepad++ שומרים עותקים זמניים בזמן העבודה. כאן מוצאים אותם - גם אחרי קריסה או סגירה בלי שמירה."/>
+            <Border Style="{StaticResource Card}">
+              <StackPanel>
+                <DockPanel Style="{StaticResource Row}" Margin="0,0,0,12">
+                  <Button x:Name="UnsRefresh" Style="{StaticResource Btn2}" Content="חיפוש מחדש"/>
+                  <TextBlock x:Name="UnsCount" VerticalAlignment="Center" Foreground="{StaticResource Muted}" Margin="6,0"/>
+                </DockPanel>
+                <ListView x:Name="UnsList" Height="340" SelectionMode="Extended">
+                  <ListView.View>
+                    <GridView>
+                      <GridViewColumn Header="תוכנה" Width="140" DisplayMemberBinding="{Binding App}"/>
+                      <GridViewColumn Header="שם" Width="260" DisplayMemberBinding="{Binding Name}"/>
+                      <GridViewColumn Header="נשמר לאחרונה" Width="150" DisplayMemberBinding="{Binding DateText}"/>
+                      <GridViewColumn Header="גודל" Width="90" DisplayMemberBinding="{Binding SizeText}"/>
+                      <GridViewColumn Header="מיקום" Width="300" DisplayMemberBinding="{Binding Folder}"/>
+                    </GridView>
+                  </ListView.View>
+                </ListView>
+                <StackPanel Orientation="Horizontal" Margin="0,12,0,0">
+                  <Button x:Name="UnsOpen" Style="{StaticResource Btn}" Content="פתיחה"/>
+                  <Button x:Name="UnsSave" Style="{StaticResource Btn2}" Content="שמירת עותק אל..."/>
+                  <Button x:Name="UnsFolder" Style="{StaticResource Btn2}" Content="הצג בתיקייה"/>
+                </StackPanel>
+              </StackPanel>
+            </Border>
+            <Border Style="{StaticResource Info}">
+              <TextBlock TextWrapping="Wrap" Text="עוד דרך ב-Word/Excel/PowerPoint: קובץ ← מידע ← ניהול מסמך ← 'שחזר מסמכים שלא נשמרו'. כשפותחים קובץ משוחזר - שמרו אותו מיד בשם חדש (קובץ ← שמירה בשם)."/>
+            </Border>
+          </StackPanel>
+        </ScrollViewer>
+
+        <!-- ===== קבצים שנעלמו ===== -->
+        <ScrollViewer x:Name="P_Search" VerticalScrollBarVisibility="Auto" Visibility="Collapsed">
+          <StackPanel Margin="38,34,38,20">
+            <TextBlock Style="{StaticResource H1}" Text="קבצים שנעלמו"/>
+            <TextBlock Style="{StaticResource Sub}" Text="לא זוכרים איפה שמרתם? הקובץ 'נעלם' אחרי גרירה בטעות? מחפשים בכל המחשב - כולל תיקיות מוסתרות, OneDrive וכוננים חיצוניים."/>
+            <Border Style="{StaticResource Card}">
+              <StackPanel>
+                <DockPanel Style="{StaticResource Row}">
+                  <TextBlock Style="{StaticResource Label}" Text="שם הקובץ (או חלק ממנו):"/>
+                  <TextBox x:Name="SrName" Width="360"/>
+                </DockPanel>
+                <DockPanel Style="{StaticResource Row}">
+                  <TextBlock Style="{StaticResource Label}" Text="סוג:"/>
+                  <ComboBox x:Name="SrType" Width="220"/>
+                  <TextBlock Style="{StaticResource Label}" Text="שונה לאחרונה:" MinWidth="0" Margin="24,0,10,0"/>
+                  <ComboBox x:Name="SrTime" Width="180" MinWidth="0"/>
+                </DockPanel>
+                <DockPanel Style="{StaticResource Row}">
+                  <TextBlock Style="{StaticResource Label}" Text="איפה לחפש:"/>
+                  <ComboBox x:Name="SrWhere" Width="360"/>
+                </DockPanel>
+                <StackPanel Orientation="Horizontal" Margin="0,12,0,12">
+                  <Button x:Name="SrStart" Style="{StaticResource Btn}" Content="חפש"/>
+                  <TextBlock x:Name="SrCount" VerticalAlignment="Center" Foreground="{StaticResource Muted}" Margin="6,0"/>
+                </StackPanel>
+                <ListView x:Name="SrList" Height="330" SelectionMode="Extended">
+                  <ListView.View>
+                    <GridView>
+                      <GridViewColumn Header="שם" Width="250" DisplayMemberBinding="{Binding Name}"/>
+                      <GridViewColumn Header="תיקייה" Width="380" DisplayMemberBinding="{Binding Folder}"/>
+                      <GridViewColumn Header="שונה בתאריך" Width="150" DisplayMemberBinding="{Binding DateText}"/>
+                      <GridViewColumn Header="גודל" Width="90" DisplayMemberBinding="{Binding SizeText}"/>
+                    </GridView>
+                  </ListView.View>
+                </ListView>
+                <StackPanel Orientation="Horizontal" Margin="0,12,0,0">
+                  <Button x:Name="SrOpen" Style="{StaticResource Btn}" Content="פתיחה"/>
+                  <Button x:Name="SrShow" Style="{StaticResource Btn2}" Content="הצג בתיקייה"/>
+                  <Button x:Name="SrCopy" Style="{StaticResource Btn2}" Content="העתק אל..."/>
+                </StackPanel>
+              </StackPanel>
+            </Border>
+          </StackPanel>
+        </ScrollViewer>
+
+        <!-- ===== סריקת עומק ===== -->
+        <ScrollViewer x:Name="P_Deep" VerticalScrollBarVisibility="Auto" Visibility="Collapsed">
+          <StackPanel Margin="38,34,38,20">
+            <TextBlock Style="{StaticResource H1}" Text="סריקת עומק"/>
+            <TextBlock Style="{StaticResource Sub}" Text="מוצאת תמונות, מסמכים וסרטונים שנמחקו לגמרי - גם אחרי ריקון הסל, Shift+Delete או פרמוט. הקבצים חוזרים ממוינים לתיקיות לפי סוג, בלי השמות המקוריים."/>
+            <Border Style="{StaticResource Warn}">
+              <TextBlock TextWrapping="Wrap" Foreground="#991B1B" FontWeight="SemiBold" Text="חשוב: שמרו את הקבצים המשוחזרים על כונן אחר (למשל דיסק-און-קי). כתיבה לאותו כונן עלולה לדרוס בדיוק את מה שמנסים להציל."/>
+            </Border>
+            <Border Style="{StaticResource Card}">
+              <StackPanel>
+                <TextBlock Style="{StaticResource H2}" Text="מה לסרוק?"/>
+                <DockPanel Style="{StaticResource Row}">
+                  <RadioButton x:Name="DpFromDrive" GroupName="dpsrc" Content="כונן:" IsChecked="True" MinWidth="130"/>
+                  <ComboBox x:Name="DpDrive" Width="360"/>
+                </DockPanel>
+                <DockPanel Style="{StaticResource Row}">
+                  <RadioButton x:Name="DpFromImage" GroupName="dpsrc" Content="קובץ תמונת כונן:" MinWidth="130"/>
+                  <TextBox x:Name="DpImage" Width="360"/>
+                  <Button x:Name="DpImageBrowse" Style="{StaticResource Btn2}" Content="בחירה..." Margin="10,0,0,0"/>
+                </DockPanel>
+                <DockPanel Style="{StaticResource Row}" Margin="0,14,0,6">
+                  <TextBlock Style="{StaticResource Label}" Text="לשמור את הקבצים ב:" MinWidth="130"/>
+                  <TextBox x:Name="DpOut" Width="360"/>
+                  <Button x:Name="DpOutBrowse" Style="{StaticResource Btn2}" Content="בחירה..." Margin="10,0,0,0"/>
+                </DockPanel>
+                <TextBlock Style="{StaticResource H2}" Text="אילו קבצים לחפש?" Margin="0,16,0,6" FontSize="15"/>
+                <WrapPanel>
+                  <CheckBox x:Name="DpJpg" Content="JPG" IsChecked="True"/>
+                  <CheckBox x:Name="DpPng" Content="PNG" IsChecked="True"/>
+                  <CheckBox x:Name="DpGif" Content="GIF" IsChecked="True"/>
+                  <CheckBox x:Name="DpHeic" Content="HEIC (אייפון)" IsChecked="True"/>
+                  <CheckBox x:Name="DpPdf" Content="PDF" IsChecked="True"/>
+                  <CheckBox x:Name="DpOffice" Content="Word / Excel / PowerPoint / ZIP" IsChecked="True"/>
+                  <CheckBox x:Name="DpVideo" Content="סרטונים MP4 / MOV" IsChecked="True"/>
+                </WrapPanel>
+                <CheckBox x:Name="DpFree" Content="לסרוק רק שטח פנוי (מהיר יותר, בלי כפילויות של קבצים קיימים - מומלץ)" IsChecked="True" Margin="0,12,0,4"/>
+                <DockPanel Style="{StaticResource Row}">
+                  <TextBlock Style="{StaticResource Label}" Text="לדלג על קבצים קטנים מ-" MinWidth="0"/>
+                  <TextBox x:Name="DpMin" Width="70" Text="10" FlowDirection="LeftToRight"/>
+                  <TextBlock Text="KB (מסנן תמונות ממוזערות)" VerticalAlignment="Center" Margin="10,0"/>
+                </DockPanel>
+                <StackPanel Orientation="Horizontal" Margin="0,16,0,0">
+                  <Button x:Name="DpStart" Style="{StaticResource Btn}" Content="התחל סריקה" Padding="36,10"/>
+                  <Button x:Name="DpOpen" Style="{StaticResource Btn2}" Content="פתח את תיקיית הקבצים"/>
+                </StackPanel>
+                <TextBlock x:Name="DpSummary" Margin="0,12,0,0" FontWeight="SemiBold" TextWrapping="Wrap"/>
+              </StackPanel>
+            </Border>
+          </StackPanel>
+        </ScrollViewer>
+
+        <!-- ===== העתקה מכונן פגום ===== -->
+        <ScrollViewer x:Name="P_Salvage" VerticalScrollBarVisibility="Auto" Visibility="Collapsed">
+          <StackPanel Margin="38,34,38,20">
+            <TextBlock Style="{StaticResource H1}" Text="העתקה מכונן פגום"/>
+            <TextBlock Style="{StaticResource Sub}" Text="מעתיקה קבצים מכונן שמתחיל להיכשל: מנסה שוב, מדלגת על אזורים פגומים וממשיכה הלאה - במקום להיתקע כמו העתקה רגילה."/>
+            <Border Style="{StaticResource Card}">
+              <StackPanel>
+                <DockPanel Style="{StaticResource Row}">
+                  <TextBlock Style="{StaticResource Label}" Text="מה להעתיק (תיקייה):" MinWidth="150"/>
+                  <TextBox x:Name="SvSrc" Width="400"/>
+                  <Button x:Name="SvSrcBrowse" Style="{StaticResource Btn2}" Content="בחירה..." Margin="10,0,0,0"/>
+                </DockPanel>
+                <DockPanel Style="{StaticResource Row}">
+                  <TextBlock Style="{StaticResource Label}" Text="לאן (כונן תקין):" MinWidth="150"/>
+                  <TextBox x:Name="SvDst" Width="400"/>
+                  <Button x:Name="SvDstBrowse" Style="{StaticResource Btn2}" Content="בחירה..." Margin="10,0,0,0"/>
+                </DockPanel>
+                <DockPanel Style="{StaticResource Row}">
+                  <TextBlock Style="{StaticResource Label}" Text="ניסיונות חוזרים:" MinWidth="150"/>
+                  <ComboBox x:Name="SvRetries" Width="200" MinWidth="0"/>
+                </DockPanel>
+                <CheckBox x:Name="SvSkip" Content="לדלג על קבצים שכבר הועתקו (להמשך אחרי עצירה)" IsChecked="True"/>
+                <StackPanel Orientation="Horizontal" Margin="0,16,0,0">
+                  <Button x:Name="SvStart" Style="{StaticResource Btn}" Content="התחל העתקה" Padding="36,10"/>
+                  <Button x:Name="SvOpen" Style="{StaticResource Btn2}" Content="פתח את התיקייה"/>
+                </StackPanel>
+              </StackPanel>
+            </Border>
+            <Border Style="{StaticResource Info}">
+              <StackPanel>
+                <TextBlock FontWeight="SemiBold" Text="טיפים לכונן גוסס:"/>
+                <TextBlock TextWrapping="Wrap" Margin="0,4,0,0" Text="• התחילו מהתיקייה הכי חשובה (למשל התמונות), ורק אחר כך את השאר - כל דקה של עבודה שוחקת את הכונן."/>
+                <TextBlock TextWrapping="Wrap" Text="• קבצים שרק חלק מהם נקרא יסומנו בדוח שנשמר בתיקיית היעד."/>
+                <TextBlock TextWrapping="Wrap" Text="• כונן שמשמיע נקישות - כבו אותו ופנו למעבדת שחזור. ניסיונות נוספים עלולים להרוס אותו סופית."/>
+              </StackPanel>
+            </Border>
+          </StackPanel>
+        </ScrollViewer>
+
+        <!-- ===== גיבוי כונן לקובץ ===== -->
+        <ScrollViewer x:Name="P_Image" VerticalScrollBarVisibility="Auto" Visibility="Collapsed">
+          <StackPanel Margin="38,34,38,20">
+            <TextBlock Style="{StaticResource H1}" Text="גיבוי כונן לקובץ"/>
+            <TextBlock Style="{StaticResource Sub}" Text="יוצר עותק מלא של כונן - סקטור אחרי סקטור - בתוך קובץ אחד (‎.img). אחר כך אפשר לחפש בעותק בסריקת עומק, בלי להעמיס על הכונן המקורי."/>
+            <Border Style="{StaticResource Card}">
+              <StackPanel>
+                <DockPanel Style="{StaticResource Row}">
+                  <TextBlock Style="{StaticResource Label}" Text="הכונן לגיבוי:" MinWidth="150"/>
+                  <ComboBox x:Name="ImDrive" Width="400"/>
+                </DockPanel>
+                <DockPanel Style="{StaticResource Row}">
+                  <TextBlock Style="{StaticResource Label}" Text="לשמור בקובץ:" MinWidth="150"/>
+                  <TextBox x:Name="ImOut" Width="400"/>
+                  <Button x:Name="ImBrowse" Style="{StaticResource Btn2}" Content="בחירה..." Margin="10,0,0,0"/>
+                </DockPanel>
+                <TextBlock x:Name="ImInfo" Style="{StaticResource Note}" Margin="0,8,0,0"/>
+                <StackPanel Orientation="Horizontal" Margin="0,16,0,0">
+                  <Button x:Name="ImStart" Style="{StaticResource Btn}" Content="התחל גיבוי" Padding="36,10"/>
+                  <Button x:Name="ImScan" Style="{StaticResource Btn2}" Content="סרוק את הקובץ בסריקת עומק"/>
+                </StackPanel>
+              </StackPanel>
+            </Border>
+            <Border Style="{StaticResource Info}">
+              <TextBlock TextWrapping="Wrap" Text="הקובץ יהיה בגודל של כל הכונן (לא רק השטח התפוס), לכן צריך כונן יעד גדול מספיק. אזורים שלא ניתן לקרוא ממולאים באפסים, והמיקומים שלהם נרשמים בפירוט."/>
+            </Border>
+          </StackPanel>
+        </ScrollViewer>
+
+        <!-- ===== תיקון שגיאות בכונן ===== -->
+        <ScrollViewer x:Name="P_Fix" VerticalScrollBarVisibility="Auto" Visibility="Collapsed">
+          <StackPanel Margin="38,34,38,20">
+            <TextBlock Style="{StaticResource H1}" Text="תיקון שגיאות בכונן"/>
+            <TextBlock Style="{StaticResource Sub}" Text="בודק את בריאות הדיסקים ואת מערכת הקבצים, ומתקן שגיאות בעזרת הכלי המובנה של Windows (chkdsk)."/>
+            <Border Style="{StaticResource Card}">
+              <StackPanel>
+                <DockPanel Style="{StaticResource Row}" Margin="0,0,0,10">
+                  <TextBlock Style="{StaticResource H2}" Text="מצב הדיסקים" Margin="0"/>
+                  <Button x:Name="FxHealthRefresh" Style="{StaticResource Btn2}" Content="רענון" DockPanel.Dock="Right" Margin="0"/>
+                </DockPanel>
+                <ListView x:Name="FxDisks" Height="130">
+                  <ListView.View>
+                    <GridView>
+                      <GridViewColumn Header="דיסק" Width="300" DisplayMemberBinding="{Binding Name}"/>
+                      <GridViewColumn Header="סוג" Width="90" DisplayMemberBinding="{Binding Kind}"/>
+                      <GridViewColumn Header="גודל" Width="100" DisplayMemberBinding="{Binding SizeText}"/>
+                      <GridViewColumn Header="מצב" Width="260" DisplayMemberBinding="{Binding Health}"/>
+                    </GridView>
+                  </ListView.View>
+                </ListView>
+              </StackPanel>
+            </Border>
+            <Border Style="{StaticResource Card}">
+              <StackPanel>
+                <TextBlock Style="{StaticResource H2}" Text="בדיקה ותיקון"/>
+                <DockPanel Style="{StaticResource Row}">
+                  <TextBlock Style="{StaticResource Label}" Text="כונן:"/>
+                  <ComboBox x:Name="FxDrive" Width="360"/>
+                </DockPanel>
+                <RadioButton x:Name="FxScan" GroupName="fx" Content="בדיקה בלבד - בטוח, בלי לשנות כלום" IsChecked="True"/>
+                <RadioButton x:Name="FxRepair" GroupName="fx" Content="תיקון שגיאות במערכת הקבצים"/>
+                <RadioButton x:Name="FxDeep" GroupName="fx" Content="תיקון + איתור סקטורים פגומים (איטי מאוד, יכול לקחת שעות)"/>
+                <Border Style="{StaticResource Warn}" Margin="0,12,0,0">
+                  <TextBlock TextWrapping="Wrap" Foreground="#991B1B" Text="אם יש על הכונן קבצים חשובים שעוד לא גובו - קודם העתיקו אותם ('העתקה מכונן פגום'). תיקון של כונן פגום פיזית עלול להעלים קבצים."/>
+                </Border>
+                <StackPanel Orientation="Horizontal" Margin="0,4,0,0">
+                  <Button x:Name="FxStart" Style="{StaticResource Btn}" Content="התחל" Padding="40,10"/>
+                </StackPanel>
+              </StackPanel>
+            </Border>
+          </StackPanel>
+        </ScrollViewer>
+      </Grid>
+
+      <!-- ===== פירוט ===== -->
+      <Border x:Name="DetailsPanel" Grid.Row="1" Style="{StaticResource Card}" Margin="22,0,22,10" Padding="10" Visibility="Collapsed">
+        <TextBox x:Name="LogBox" Height="170" IsReadOnly="True" TextWrapping="Wrap" VerticalScrollBarVisibility="Auto"
+                 BorderThickness="0" FontSize="12.5" Background="White"/>
+      </Border>
+
+      <!-- ===== שורת מצב ===== -->
+      <Border Grid.Row="2" Style="{StaticResource Card}" Margin="22,0,22,18" Padding="22,14">
+        <StackPanel>
+          <DockPanel LastChildFill="True">
+            <StackPanel DockPanel.Dock="Right" Orientation="Horizontal">
+              <Button x:Name="DetailsBtn" Style="{StaticResource Btn2}" Content="הצגת פירוט"/>
+              <Button x:Name="StopBtn" Style="{StaticResource BtnDanger}" Content="עצירה" IsEnabled="False" Margin="0"/>
+            </StackPanel>
+            <StackPanel VerticalAlignment="Center">
+              <TextBlock x:Name="StatusText" Text="מוכן" FontWeight="Bold" TextTrimming="CharacterEllipsis"/>
+              <TextBlock x:Name="StatusSub" Foreground="{StaticResource Muted}" FontSize="12.5" TextTrimming="CharacterEllipsis" Visibility="Collapsed"/>
+            </StackPanel>
+          </DockPanel>
+          <ProgressBar x:Name="Progress" Style="{StaticResource Bar}" Margin="0,12,0,0" Value="0"/>
+        </StackPanel>
+      </Border>
+    </Grid>
+  </Grid>
+</Window>
