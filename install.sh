@@ -12,18 +12,36 @@ case "$1" in
   *) echo "שימוש: $0 [--shell | --ai-only]"; exit 2 ;;
 esac
 
-if ! command -v python3 >/dev/null 2>&1; then
-  echo "hebfix צריך python3. התקן אותו ונסה שוב." >&2
-  exit 1
+HERE="$(cd "$(dirname "$0")" && pwd)"
+case "$(uname -s)" in
+  Linux) OS=linux ;;
+  Darwin) OS=darwin ;;
+  *) echo "מערכת לא נתמכת: $(uname -s) (ב-Windows השתמשו ב-WSL)" >&2; exit 1 ;;
+esac
+case "$(uname -m)" in
+  x86_64|amd64) ARCH=amd64 ;;
+  aarch64|arm64) ARCH=arm64 ;;
+  armv6*|armv7*|armhf) ARCH=arm ;;
+  *) echo "מעבד לא נתמך: $(uname -m)" >&2; exit 1 ;;
+esac
+
+BIN="$HERE/dist/hebfix-$OS-$ARCH"
+if [ ! -f "$BIN" ]; then
+  if command -v go >/dev/null 2>&1; then
+    echo "בונה את hebfix מקוד המקור..."
+    (cd "$HERE" && CGO_ENABLED=0 go build -trimpath -ldflags "-s -w" -o "$BIN" .)
+  else
+    echo "לא נמצא קובץ מוכן עבור $OS-$ARCH" >&2
+    exit 1
+  fi
 fi
 
-SRC="$(cd "$(dirname "$0")" && pwd)/hebfix.py"
 DEST_DIR="$HOME/.local/share/hebfix"
 BIN_DIR="$HOME/.local/bin"
 mkdir -p "$DEST_DIR" "$BIN_DIR"
-cp "$SRC" "$DEST_DIR/hebfix.py"
-chmod +x "$DEST_DIR/hebfix.py"
-ln -sf "$DEST_DIR/hebfix.py" "$BIN_DIR/hebfix"
+rm -f "$BIN_DIR/hebfix" "$DEST_DIR/hebfix.py"
+cp "$BIN" "$BIN_DIR/hebfix"
+chmod +x "$BIN_DIR/hebfix"
 
 AI_TOOLS="claude gemini codex aider ollama sgpt llm chatgpt copilot cursor-agent qwen opencode"
 
@@ -35,8 +53,8 @@ hook() {
   if [ "$MODE" = shell ]; then
     cat <<HOOK
 if [ -z "\$HEBFIX_ACTIVE" ] && [ -z "\$HEBFIX_DISABLE" ] && [ -t 0 ] && [ -t 1 ] \\
-   && [ -f "\$HOME/.local/share/hebfix/hebfix.py" ] && command -v python3 >/dev/null 2>&1; then
-  python3 "\$HOME/.local/share/hebfix/hebfix.py" -- "$shell_name"
+   && [ -x "\$HOME/.local/bin/hebfix" ]; then
+  "\$HOME/.local/bin/hebfix" -- "$shell_name"
   __hebfix_rc=\$?
   [ \$__hebfix_rc -ne 213 ] && exit \$__hebfix_rc
   unset __hebfix_rc
@@ -44,7 +62,7 @@ fi
 HOOK
   else
     for t in $AI_TOOLS; do
-      echo "$t() { if [ -n \"\$HEBFIX_ACTIVE\" ]; then command $t \"\$@\"; else python3 \"\$HOME/.local/share/hebfix/hebfix.py\" $t \"\$@\"; fi; }"
+      echo "$t() { if [ -n \"\$HEBFIX_ACTIVE\" ]; then command $t \"\$@\"; else \"\$HOME/.local/bin/hebfix\" $t \"\$@\"; fi; }"
     done
   fi
   echo "# <<< hebfix <<<"

@@ -25,7 +25,9 @@ cd hebfix
 זה עוטף את הפקודות: `claude`, `gemini`, `codex`, `aider`, `ollama`, `sgpt`, `llm`, `chatgpt`,
 `copilot`, `cursor-agent`, `qwen`, `opencode`.
 
-דרישות: Linux, macOS או WSL (ב-Windows), ו-`python3` (ללא ספריות נוספות).
+דרישות: Linux, macOS או WSL (ב-Windows). **לא צריך להתקין שום דבר** (לא Python ולא ספריות אחרות):
+בתיקייה `dist/` יש קבצי הרצה מוכנים, וההתקנה בוחרת לבד את המתאים למחשב שלכם
+(Linux Intel/AMD, Linux ARM כולל Raspberry Pi, ו-Mac Intel או Apple Silicon).
 
 ## שימוש
 
@@ -66,8 +68,11 @@ cd hebfix
 - האלגוריתם הוא קירוב של תקן Unicode Bidi ולא מימוש מלא, אבל הוא מכסה את רוב המקרים
   (עברית, עברית עם אנגלית, מספרים, פיסוק וניקוד).
 
-## בדיקות
+## פיתוח
+
+הקוד כתוב ב-Go. צריך Go רק כדי לבנות מחדש, לא כדי להשתמש בתוסף.
 
 ```bash
-python3 -m unittest discover -s tests -v
+go test ./...   # בדיקות
+./build.sh      # בניית קבצי ההרצה לתיקייה dist/
 ```
