@@ -22,9 +22,18 @@ for key, text in parts.items():
     assert "\n'@" not in '\n' + text, key   # אסור שורה שמתחילה ב-'@ בתוך here-string
     assert key in out, key
     out = out.replace(key, text)
+# קובץ אחד: כותרת קטנה של cmd שמפעילה PowerShell על אותו קובץ עצמו.
+# עבור PowerShell הכותרת היא הערה (<# ... #>); עבור cmd היא פקודות רגילות. בלי BOM, כדי ש-cmd יקרא את השורה הראשונה.
+header = """<# : batch
+@echo off
+set "CR_SELF=%~f0"
+start "" powershell.exe -NoProfile -ExecutionPolicy Bypass -STA -WindowStyle Hidden -Command "iex ([IO.File]::ReadAllText($env:CR_SELF, [Text.Encoding]::UTF8))"
+exit /b
+#>
+"""
+assert all(ord(c) < 128 for c in header.split('\n', 1)[1])
+out = header + out
 out = out.replace('\r\n', '\n').replace('\n', '\r\n')
-root = os.path.join(here, '..')
-open(os.path.join(root, 'ConverterRecovery.ps1'), 'w', encoding='utf-8-sig', newline='').write(out)
-bat = '@echo off\r\ncd /d "%~dp0"\r\nstart "" powershell.exe -NoProfile -ExecutionPolicy Bypass -STA -WindowStyle Hidden -File "%~dp0ConverterRecovery.ps1"\r\n'
-open(os.path.join(root, 'Start.bat'), 'w', encoding='ascii', newline='').write(bat)
-print('built')
+dist = os.path.join(here, '..', '..', 'ממיר ומשחזר.cmd')
+open(dist, 'w', encoding='utf-8', newline='').write(out)
+print('built', os.path.abspath(dist))

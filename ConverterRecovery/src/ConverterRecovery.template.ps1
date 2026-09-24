@@ -1,5 +1,5 @@
 # ממיר ומשחזר – שחזור, המרה והעברת קבצים ב-Windows
-# הפעלה: לחיצה כפולה על "Start.bat" (או: powershell -ExecutionPolicy Bypass -STA -File ConverterRecovery.ps1)
+# הפעלה: לחיצה כפולה על "ממיר ומשחזר.cmd" – קובץ אחד שמכיל את כל התוכנה
 
 $ErrorActionPreference = 'Stop'
 $AppName = 'ממיר ומשחזר'
@@ -17,12 +17,18 @@ function Show-Info([string]$text) { [void](Show-Msg $text 'Information') }
 function Ask([string]$text, [string]$icon = 'Question') { (Show-Msg $text $icon 'YesNo') -eq 'Yes' }
 
 # ---------- הרשאות מנהל (נדרשות לסריקת עומק, גרסאות קודמות, גיבוי ותיקון כוננים) ----------
+# כשהתוכנה מופעלת מהקובץ היחיד (.cmd), קובץ ה-cmd מעביר את הנתיב שלו במשתנה CR_SELF
+$SelfPath = if ($env:CR_SELF) { $env:CR_SELF } else { $PSCommandPath }
 $principal = New-Object Security.Principal.WindowsPrincipal([Security.Principal.WindowsIdentity]::GetCurrent())
 $isAdmin = $principal.IsInRole([Security.Principal.WindowsBuiltInRole]::Administrator)
 if (-not $isAdmin -and $env:CONVERTER_NO_ELEVATE -ne '1') {
     try {
-        Start-Process powershell.exe -Verb RunAs -ArgumentList @(
-            '-NoProfile', '-ExecutionPolicy', 'Bypass', '-STA', '-WindowStyle', 'Hidden', '-File', "`"$PSCommandPath`"")
+        if ($SelfPath -like '*.cmd') {
+            Start-Process -FilePath $SelfPath -Verb RunAs -WindowStyle Hidden
+        } else {
+            Start-Process powershell.exe -Verb RunAs -ArgumentList @(
+                '-NoProfile', '-ExecutionPolicy', 'Bypass', '-STA', '-WindowStyle', 'Hidden', '-File', "`"$SelfPath`"")
+        }
         exit
     } catch {
         # המשתמש סירב – ממשיכים בלי הכלים שדורשים הרשאות מנהל
@@ -38,7 +44,7 @@ try {
     [void][Native.ConsoleWin]::ShowWindow([Native.ConsoleWin]::GetConsoleWindow(), 0)
 } catch { }
 
-$AppDir = Split-Path -Parent $PSCommandPath
+$AppDir = Split-Path -Parent $SelfPath
 $WorkDir = Join-Path $env:LOCALAPPDATA 'ConverterRecovery'
 [void][IO.Directory]::CreateDirectory($WorkDir)
 
