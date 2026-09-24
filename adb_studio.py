@@ -2,7 +2,7 @@
 """ADB סטודיו — ממשק גרפי פשוט ונקי בעברית לניהול מכשירי אנדרואיד דרך ADB.
 
 הפעלה:  python adb_studio.py
-אין צורך בספריות חיצוניות — רק Python 3.8 ומעלה.
+אין צורך בספריות חיצוניות — רק Python 3.9 ומעלה (או קובץ ההתקנה המוכן ל-Windows).
 """
 
 import json
@@ -28,14 +28,19 @@ from pathlib import Path
 from urllib.parse import parse_qs, quote, urlparse
 
 APP_NAME = "ADB סטודיו"
-APP_DIR = Path(__file__).resolve().parent
-WEB_DIR = APP_DIR / "web"
-TOOLS_DIR = APP_DIR / "platform-tools"
+FROZEN = getattr(sys, "frozen", False)  # רץ כקובץ exe מותקן
+APP_DIR = (Path(sys.executable) if FROZEN else Path(__file__)).resolve().parent
+RES_DIR = Path(getattr(sys, "_MEIPASS", APP_DIR)).resolve()
+WEB_DIR = (RES_DIR / "web").resolve()
 DATA_DIR = Path.home() / ".adb-studio"
+TOOLS_DIR = APP_DIR / "platform-tools"          # מגיע עם ההתקנה
+USER_TOOLS_DIR = DATA_DIR / "platform-tools"    # התקנה אוטומטית מתוך התוכנה
 IS_WINDOWS = os.name == "nt"
 IS_MAC = sys.platform == "darwin"
 NO_WINDOW = 0x08000000 if IS_WINDOWS else 0  # CREATE_NO_WINDOW
 TOKEN = secrets.token_urlsafe(24)
+last_seen = 0.0  # מתי הממשק פנה לשרת לאחרונה
+IDLE_EXIT = 180  # שניות בלי ממשק פתוח עד יציאה (דפדפנים מאטים טיימרים של חלון ממוזער)
 
 PACKAGE_RE = re.compile(r"^[A-Za-z0-9_.]+$")
 ADDRESS_RE = re.compile(r"^[A-Za-z0-9.\-\[\]:]+$")
@@ -63,7 +68,7 @@ def find_adb():
     candidates = []
     if os.environ.get("ADB_PATH"):
         candidates.append(Path(os.environ["ADB_PATH"]))
-    candidates.append(TOOLS_DIR / exe)
+    candidates += [TOOLS_DIR / exe, USER_TOOLS_DIR / exe]
     on_path = shutil.which("adb")
     if on_path:
         candidates.append(Path(on_path))
@@ -393,15 +398,16 @@ def install_platform_tools():
                 shutil.copyfileobj(resp, fh)
         except OSError as exc:
             raise AdbError(f"ההורדה נכשלה — בדקו את חיבור האינטרנט ({exc})")
+        DATA_DIR.mkdir(parents=True, exist_ok=True)
+        root = DATA_DIR.resolve()
         with zipfile.ZipFile(archive) as zf:
             for member in zf.namelist():
-                target = (APP_DIR / member).resolve()
-                if not str(target).startswith(str(APP_DIR)):
+                if not (root / member).resolve().is_relative_to(root):
                     raise AdbError("קובץ ההורדה לא תקין")
-            zf.extractall(APP_DIR)
+            zf.extractall(root)
         if not IS_WINDOWS:
             for name in ("adb", "fastboot"):
-                exe = TOOLS_DIR / name
+                exe = USER_TOOLS_DIR / name
                 if exe.exists():
                     exe.chmod(exe.stat().st_mode | 0o755)
     finally:
@@ -500,6 +506,8 @@ class Handler(BaseHTTPRequestHandler):
                 self.send_error_json("לא נמצא", HTTPStatus.NOT_FOUND)
         if not self.token_ok(query):
             return self.send_error_json("גישה נדחתה", HTTPStatus.FORBIDDEN)
+        global last_seen
+        last_seen = time.monotonic()
         route = url.path[len("/api/"):]
         handler = ROUTES.get((method, route))
         if not handler:
@@ -531,7 +539,7 @@ class Handler(BaseHTTPRequestHandler):
         if path in ("", "/"):
             path = "/index.html"
         target = (WEB_DIR / path.lstrip("/")).resolve()
-        if not str(target).startswith(str(WEB_DIR)) or not target.is_file():
+        if not target.is_relative_to(WEB_DIR) or not target.is_file():
             return self.send_error_json("לא נמצא", HTTPStatus.NOT_FOUND)
         self.send_bytes(target.read_bytes(), MIME.get(target.suffix, "application/octet-stream"))
 
@@ -811,8 +819,9 @@ def main():
             if time.monotonic() - opened > 5:
                 return
         say("לחצו Ctrl+C כדי לצאת.")
-        while True:
-            time.sleep(3600)
+        # נסגר לבד כשהחלון נסגר (אין יותר פניות מהממשק)
+        while no_window or not last_seen or time.monotonic() - last_seen < IDLE_EXIT:
+            time.sleep(5)
     except KeyboardInterrupt:
         pass
     finally:
