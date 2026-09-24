@@ -1,0 +1,75 @@
+<!doctype html>
+<html lang="he" dir="rtl">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>ADB סטודיו</title>
+  <link rel="icon" href="icon.svg" type="image/svg+xml">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Heebo:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <div class="app">
+    <aside class="sidebar">
+      <div class="brand">
+        <img src="icon.svg" alt="" width="36" height="36">
+        <div>
+          <strong>ADB סטודיו</strong>
+          <span>ניהול אנדרואיד פשוט</span>
+        </div>
+      </div>
+
+      <nav class="nav" id="nav">
+        <button data-view="overview" class="active"><i data-icon="phone"></i><span>סקירה</span></button>
+        <button data-view="apps"><i data-icon="grid"></i><span>אפליקציות</span></button>
+        <button data-view="files"><i data-icon="folder"></i><span>קבצים</span></button>
+        <button data-view="screen"><i data-icon="camera"></i><span>צילום מסך</span></button>
+        <button data-view="terminal"><i data-icon="terminal"></i><span>טרמינל</span></button>
+      </nav>
+
+      <div class="sidebar-foot">
+        <div class="adb-status" id="adbStatus"><span class="dot"></span><span>בודק ADB…</span></div>
+        <button class="icon-btn" id="themeBtn" title="מצב כהה / בהיר"><i data-icon="moon"></i></button>
+      </div>
+    </aside>
+
+    <main class="main">
+      <header class="topbar">
+        <div class="device-picker" id="devicePicker">
+          <button class="device-current" id="deviceBtn">
+            <span class="dot"></span>
+            <span class="device-name">אין מכשיר מחובר</span>
+            <i data-icon="chevron"></i>
+          </button>
+          <div class="device-menu" id="deviceMenu"></div>
+        </div>
+        <div class="topbar-actions">
+          <button class="btn ghost" id="wirelessBtn"><i data-icon="wifi"></i><span>חיבור אלחוטי</span></button>
+        </div>
+      </header>
+
+      <section class="content" id="content"></section>
+    </main>
+  </div>
+
+  <div class="modal-backdrop" id="modal" hidden>
+    <div class="modal" role="dialog" aria-modal="true">
+      <div class="modal-head">
+        <h3 id="modalTitle"></h3>
+        <button class="icon-btn" data-close><i data-icon="x"></i></button>
+      </div>
+      <div class="modal-body" id="modalBody"></div>
+    </div>
+  </div>
+
+  <div class="drop-overlay" id="dropOverlay" hidden>
+    <div class="drop-card"><i data-icon="upload"></i><p id="dropText">שחררו כאן</p></div>
+  </div>
+
+  <div class="toasts" id="toasts"></div>
+
+  <script src="app.js"></script>
+</body>
+</html>

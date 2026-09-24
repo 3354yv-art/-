@@ -1,0 +1,3 @@
+platform-tools/
+__pycache__/
+*.pyc
