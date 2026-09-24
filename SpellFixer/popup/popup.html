@@ -1,0 +1,64 @@
+<!doctype html>
+<html lang="he" dir="rtl">
+<head>
+  <meta charset="utf-8">
+  <title>מתקן שגיאות כתיב</title>
+  <link rel="stylesheet" href="popup.css">
+</head>
+<body>
+  <header>
+    <img src="../icons/icon32.png" alt="" width="24" height="24">
+    <h1>מתקן שגיאות כתיב</h1>
+    <label class="switch" title="הפעלה / כיבוי">
+      <input type="checkbox" id="enabled">
+      <span></span>
+    </label>
+  </header>
+
+  <section class="actions">
+    <button id="scan" class="primary">🔍 סרוק את הדף</button>
+    <div class="row">
+      <button id="fixPage">✔ תקן הכל בדף</button>
+      <button id="clear">✖ נקה סימונים</button>
+    </div>
+    <button id="fixField">✎ תקן את השדה הפעיל</button>
+    <p id="status" class="status" aria-live="polite"></p>
+  </section>
+
+  <details open>
+    <summary>הגדרות</summary>
+    <label class="check"><input type="checkbox" id="autoCheckFields"> בדיקה אוטומטית בזמן הקלדה</label>
+    <label class="check"><input type="checkbox" id="online"> בדיקה מקוונת מתקדמת (LanguageTool)</label>
+    <label class="check"><input type="checkbox" id="grammar"> לבדוק גם דקדוק ופיסוק</label>
+    <label class="field">שפה לבדיקה מקוונת
+      <select id="language">
+        <option value="auto">זיהוי אוטומטי</option>
+        <option value="en-US">אנגלית (ארה"ב)</option>
+        <option value="en-GB">אנגלית (בריטניה)</option>
+        <option value="ru-RU">רוסית</option>
+        <option value="ar">ערבית</option>
+        <option value="fr">צרפתית</option>
+        <option value="de-DE">גרמנית</option>
+        <option value="es">ספרדית</option>
+        <option value="uk-UA">אוקראינית</option>
+      </select>
+    </label>
+    <p class="hint">עברית נבדקת תמיד מול המילון המובנה והמילון האישי שלכם. בבדיקה המקוונת הטקסט נשלח לשרת LanguageTool.</p>
+  </details>
+
+  <details>
+    <summary>המילון האישי שלי</summary>
+    <label class="field">תיקונים משלי (שורה לכל תיקון: <code>שגוי = נכון</code>)
+      <textarea id="custom" rows="5" placeholder="בעיקבות = בעקבות&#10;teh = the"></textarea>
+    </label>
+    <label class="field">מילים שלא יסומנו כשגיאה (שורה לכל מילה)
+      <textarea id="ignored" rows="4"></textarea>
+    </label>
+    <button id="save">שמור</button>
+  </details>
+
+  <footer>קיצורי מקלדת:<br><kbd dir="ltr">Alt+Shift+F</kbd> תיקון השדה הפעיל<br><kbd dir="ltr">Alt+Shift+S</kbd> סריקת הדף</footer>
+
+  <script src="popup.js"></script>
+</body>
+</html>
