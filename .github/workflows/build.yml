@@ -44,6 +44,17 @@ jobs:
           Expand-Archive pt.zip -DestinationPath dist/ADBStudio
           Test-Path dist/ADBStudio/platform-tools/adb.exe
 
+      - name: Bundle screen mirroring (scrcpy)
+        shell: pwsh
+        run: |
+          $rel = Invoke-RestMethod https://api.github.com/repos/Genymobile/scrcpy/releases/latest -Headers @{ "User-Agent" = "ADB-Studio" }
+          $asset = $rel.assets | Where-Object { $_.name -like "scrcpy-win64-*.zip" } | Select-Object -First 1
+          Invoke-WebRequest $asset.browser_download_url -OutFile scrcpy.zip
+          Expand-Archive scrcpy.zip -DestinationPath scrcpy-tmp
+          $inner = Get-ChildItem scrcpy-tmp -Directory | Select-Object -First 1
+          Move-Item $inner.FullName dist/ADBStudio/scrcpy
+          if (-not (Test-Path dist/ADBStudio/scrcpy/scrcpy.exe)) { throw "scrcpy.exe missing" }
+
       - name: Smoke test
         shell: pwsh
         run: |

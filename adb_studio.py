@@ -6,6 +6,7 @@
 """
 
 import json
+import mimetypes
 import os
 import platform
 import re
@@ -15,7 +16,9 @@ import shutil
 import socket
 import stat
 import subprocess
+import string
 import sys
+import tarfile
 import tempfile
 import threading
 import time
@@ -35,6 +38,8 @@ WEB_DIR = (RES_DIR / "web").resolve()
 DATA_DIR = Path.home() / ".adb-studio"
 TOOLS_DIR = APP_DIR / "platform-tools"          # מגיע עם ההתקנה
 USER_TOOLS_DIR = DATA_DIR / "platform-tools"    # התקנה אוטומטית מתוך התוכנה
+SCRCPY_DIR = APP_DIR / "scrcpy"                 # שיקוף מסך — מגיע עם ההתקנה
+USER_SCRCPY_DIR = DATA_DIR / "scrcpy"
 IS_WINDOWS = os.name == "nt"
 IS_MAC = sys.platform == "darwin"
 NO_WINDOW = 0x08000000 if IS_WINDOWS else 0  # CREATE_NO_WINDOW
@@ -51,6 +56,7 @@ MIME = {
     ".svg": "image/svg+xml",
     ".png": "image/png",
     ".ico": "image/x-icon",
+    ".woff2": "font/woff2",
 }
 
 
@@ -95,6 +101,24 @@ def adb_path():
     if not _adb_path or not Path(_adb_path).is_file():
         _adb_path = find_adb()
     return _adb_path
+
+
+_scrcpy_path = None
+
+
+def scrcpy_path():
+    """scrcpy — הכלי שמאחורי שיקוף המסך (Genymobile, Apache-2.0)."""
+    global _scrcpy_path
+    if _scrcpy_path and Path(_scrcpy_path).is_file():
+        return _scrcpy_path
+    exe = "scrcpy.exe" if IS_WINDOWS else "scrcpy"
+    candidates = [Path(os.environ["SCRCPY_PATH"])] if os.environ.get("SCRCPY_PATH") else []
+    candidates += [SCRCPY_DIR / exe, USER_SCRCPY_DIR / exe]
+    on_path = shutil.which("scrcpy")
+    if on_path:
+        candidates.append(Path(on_path))
+    _scrcpy_path = next((str(p) for p in candidates if p.is_file()), None)
+    return _scrcpy_path
 
 
 FRIENDLY_ERRORS = [
@@ -191,7 +215,9 @@ def device_info(serial):
     script = f"; echo {SEP}; ".join([
         "getprop ro.product.manufacturer; getprop ro.product.model; "
         "getprop ro.build.version.release; getprop ro.build.version.sdk; "
-        "getprop ro.product.device; getprop ro.build.display.id",
+        "getprop ro.product.device; getprop ro.build.display.id; "
+        "getprop ro.build.version.security_patch; getprop ro.product.cpu.abi; "
+        "getprop ro.soc.model; getprop ro.board.platform; getprop ro.product.brand",
         "dumpsys battery",
         "df -k /data",
         "wm size",
@@ -201,7 +227,8 @@ def device_info(serial):
     ])
     parts = shell(serial, script).split(SEP)
     parts += [""] * (7 - len(parts))
-    props = [line.strip() for line in parts[0].strip().splitlines()] + [""] * 6
+    # getprop מדפיס שורה ריקה לערך חסר — לא מסננים שורות כדי לא לשבש את הסדר
+    props = [line.strip() for line in parts[0].strip("\n").split("\n")] + [""] * 11
     info = {
         "manufacturer": props[0].capitalize(),
         "model": props[1],
@@ -209,6 +236,10 @@ def device_info(serial):
         "sdk": props[3],
         "codename": props[4],
         "build": props[5],
+        "patch": props[6],
+        "abi": props[7],
+        "chipset": props[8] or props[9],
+        "brand": props[10].capitalize(),
     }
 
     battery = {}
@@ -292,6 +323,86 @@ def switch_to_wifi(serial):
     raise last
 
 
+MDNS_RE = re.compile(r"^(\S+)\s+(_adb[\w-]*\._tcp)\.?\s+([\d.]+):(\d+)")
+
+
+def mdns_services():
+    """מכשירים שמפרסמים את עצמם ברשת (ניפוי באגים אלחוטי, אנדרואיד 11+)."""
+    try:
+        _, out, _ = run_adb("mdns", "services", timeout=8)
+    except AdbError:
+        return []
+    services = []
+    for line in out.splitlines():
+        match = MDNS_RE.match(line.strip())
+        if match:
+            name, kind, ip, port = match.groups()
+            services.append({"name": name, "kind": kind, "ip": ip, "address": f"{ip}:{port}"})
+    return services
+
+
+def discover():
+    connected = {d["serial"] for d in list_devices()}
+    found = []
+    for svc in mdns_services():
+        if svc["kind"] != "_adb-tls-connect._tcp":
+            continue
+        if svc["address"] in connected or any(c.startswith(svc["name"] + ".") for c in connected):
+            continue
+        # שם השירות הוא בדרך כלל adb-<מספר סידורי>-<אקראי>
+        label = re.sub(r"^adb-|-\w{6}$", "", svc["name"])
+        found.append({"label": label, "address": svc["address"]})
+    return found
+
+
+QR_SESSIONS = {}
+
+
+def qr_start():
+    """צימוד בסריקת QR — אותו פרוטוקול של Android Studio."""
+    name = "ADB-Studio-" + secrets.token_hex(3)
+    alphabet = string.ascii_letters + string.digits
+    password = "".join(secrets.choice(alphabet) for _ in range(10))
+    QR_SESSIONS[name] = {"password": password, "state": "waiting", "ip": None}
+    return {"session": name, "qr": f"WIFI:T:ADB;S:{name};P:{password};;"}
+
+
+def qr_poll(name):
+    session = QR_SESSIONS.get(name)
+    if not session:
+        raise AdbError("פג תוקף הצימוד — נסו שוב")
+    services = mdns_services()
+    if session["state"] == "waiting":
+        pairing = next((s for s in services if s["name"] == name
+                        and s["kind"].startswith("_adb-tls-pairing")), None)
+        if not pairing:
+            return {"state": "waiting"}
+        _, out, err = run_adb("pair", pairing["address"], session["password"], timeout=30)
+        if "Successfully paired" not in out + err:
+            session["state"] = "failed"
+            raise AdbError(f"הצימוד נכשל: {(out + err).strip()}")
+        session.update(state="paired", ip=pairing["ip"], since=time.monotonic())
+    if session["state"] == "paired":
+        target = next((s for s in services if s["ip"] == session["ip"]
+                       and s["kind"] == "_adb-tls-connect._tcp"), None)
+        if target:
+            # adb מתחבר לבד למכשיר מצומד; אם לא — מתחברים ידנית
+            for dev in list_devices():
+                if dev["serial"].startswith(target["name"] + ".") or dev["serial"] == target["address"]:
+                    session["state"] = "connected"
+                    return {"state": "connected", "serial": dev["serial"]}
+            try:
+                serial = connect(target["address"])
+                session["state"] = "connected"
+                return {"state": "connected", "serial": serial}
+            except AdbError:
+                pass
+        if time.monotonic() - session["since"] > 25:
+            return {"state": "paired"}
+        return {"state": "pairing"}
+    return {"state": session["state"]}
+
+
 # ────────────────────────── אפליקציות ──────────────────────────
 
 
@@ -301,16 +412,74 @@ def check_package(package):
     return package
 
 
-def list_apps(serial, include_system):
-    def packages(flag):
-        out = shell(serial, f"pm list packages {flag}".strip(), timeout=30)
-        return {l.split(":", 1)[1].strip() for l in out.splitlines() if l.startswith("package:")}
+def list_apps(serial):
+    """כל האפליקציות, כולל מושבתות ואפליקציות מערכת שהוסרו (וניתנות לשחזור)."""
+    script = f"; echo {SEP}; ".join([
+        "pm list packages -3", "pm list packages", "pm list packages -d", "pm list packages -u"])
+    parts = shell(serial, script, timeout=40).split(SEP) + [""] * 4
 
-    user = packages("-3")
-    everything = packages("") if include_system else user
-    apps = [{"package": p, "system": p not in user} for p in everything]
-    apps.sort(key=lambda a: (a["system"], a["package"]))
+    def names(text):
+        return {l.split(":", 1)[1].strip() for l in text.splitlines() if l.startswith("package:")}
+
+    user, installed, disabled, everything = (names(t) for t in parts[:4])
+    everything |= installed
+    apps = [{
+        "package": p,
+        "system": p not in user,
+        "disabled": p in disabled,
+        "removed": p not in installed,
+    } for p in everything]
+    apps.sort(key=lambda a: a["package"])
     return apps
+
+
+INSTALLERS = {
+    "com.android.vending": "Google Play",
+    "com.sec.android.app.samsungapps": "Galaxy Store",
+    "com.huawei.appmarket": "AppGallery",
+    "com.xiaomi.market": "GetApps",
+    "com.xiaomi.mipicks": "GetApps",
+    "com.amazon.venezia": "Amazon Appstore",
+    "org.fdroid.fdroid": "F-Droid",
+    "com.google.android.packageinstaller": "התקנה ידנית",
+    "com.android.packageinstaller": "התקנה ידנית",
+    "com.android.shell": "ADB",
+}
+
+
+def app_info(serial, package):
+    package = check_package(package)
+    out = shell(serial, f"dumpsys package {shlex.quote(package)}", timeout=30)
+    start = out.find(f"Package [{package}]")
+    section = out[start:] if start >= 0 else out
+
+    def field(name):
+        match = re.search(rf"\b{name}=([^\s,]+)", section)
+        return match.group(1) if match else None
+
+    info = {
+        "package": package,
+        "version": field("versionName"),
+        "versionCode": field("versionCode"),
+        "targetSdk": field("targetSdk"),
+        "installed": re.search(r"firstInstallTime=([\d-]+ [\d:]+)", section),
+        "updated": re.search(r"lastUpdateTime=([\d-]+ [\d:]+)", section),
+    }
+    info["installed"] = info["installed"].group(1) if info["installed"] else None
+    info["updated"] = info["updated"].group(1) if info["updated"] else None
+    installer = field("installerPackageName")
+    if installer in (None, "null"):
+        info["installer"] = "מותקנת מראש" if "/system/" in section or "/product/" in section else "לא ידוע"
+    else:
+        info["installer"] = INSTALLERS.get(installer, installer)
+    info["permissions"] = len(re.findall(r"^\s+[\w.]+\.permission\.[\w.]+: granted=true",
+                                         section, re.M))
+    code_path = field("codePath")
+    if code_path:
+        du = run_adb("shell", f"du -sk {shlex.quote(code_path)}", serial=serial, timeout=15)[1]
+        size = du.split()[0] if du.split() else ""
+        info["size"] = int(size) * 1024 if size.isdigit() else None
+    return info
 
 
 def app_action(serial, package, action, system=False):
@@ -325,8 +494,25 @@ def app_action(serial, package, action, system=False):
         shell(serial, f"am force-stop {q}")
         return "האפליקציה נעצרה"
     if action == "clear":
-        shell(serial, f"pm clear {q}")
+        out = shell(serial, f"pm clear {q}")
+        if "Success" not in out:
+            raise AdbError("לא ניתן לנקות את הנתונים של האפליקציה הזו")
         return "נתוני האפליקציה נוקו"
+    if action == "disable":
+        out = shell(serial, f"pm disable-user --user 0 {q}")
+        if "disabled" not in out:
+            raise AdbError(friendly(out) if out.strip() else "לא ניתן להשבית את האפליקציה")
+        return "האפליקציה הושבתה"
+    if action == "enable":
+        out = shell(serial, f"pm enable {q}")
+        if "enabled" not in out:
+            raise AdbError(friendly(out) if out.strip() else "לא ניתן להפעיל את האפליקציה")
+        return "האפליקציה הופעלה מחדש"
+    if action == "restore":
+        out = shell(serial, f"cmd package install-existing {q} || pm install-existing {q}")
+        if "installed" not in out.lower():
+            raise AdbError(friendly(out) if out.strip() else "השחזור נכשל")
+        return "האפליקציה שוחזרה"
     if action == "uninstall":
         if system:
             out = shell(serial, f"pm uninstall -k --user 0 {q}")
@@ -337,6 +523,32 @@ def app_action(serial, package, action, system=False):
             raise AdbError(friendly(out) if out.strip() else "ההסרה נכשלה")
         return "האפליקציה הוסרה"
     raise AdbError("פעולה לא מוכרת")
+
+
+def install_package(serial, local):
+    """מתקין APK רגיל, או חבילה מפוצלת (‎.apks / .xapk) עם install-multiple."""
+    suffix = local.suffix.lower()
+    if suffix == ".apk":
+        _, out, err = run_adb("install", "-r", str(local), serial=serial, timeout=900)
+    elif suffix in (".apks", ".xapk", ".apkm", ".zip"):
+        parts_dir = local.parent / "parts"
+        parts_dir.mkdir()
+        parts = []
+        try:
+            with zipfile.ZipFile(local) as zf:
+                for i, member in enumerate(n for n in zf.namelist() if n.lower().endswith(".apk")):
+                    target = parts_dir / f"{i:03d}.apk"
+                    target.write_bytes(zf.read(member))
+                    parts.append(str(target))
+        except zipfile.BadZipFile:
+            raise AdbError("הקובץ פגום או מוצפן (APKM מוצפן אינו נתמך)")
+        if not parts:
+            raise AdbError("לא נמצאו קבצי APK בתוך החבילה")
+        _, out, err = run_adb("install-multiple", "-r", *parts, serial=serial, timeout=900)
+    else:
+        raise AdbError("ניתן להתקין קבצי APK, APKS או XAPK")
+    if "Success" not in out + err:
+        raise AdbError(friendly(out + err))
 
 
 def apk_path(serial, package):
@@ -384,7 +596,92 @@ def list_files(serial, path):
     return {"path": path, "entries": entries}
 
 
-# ───────────────────────── התקנת ADB ─────────────────────────
+def rename_file(serial, path, new_name):
+    path = clean_remote(path)
+    new_name = (new_name or "").strip()
+    if not new_name or "/" in new_name or new_name in (".", ".."):
+        raise AdbError("שם לא תקין")
+    target = path.rstrip("/").rsplit("/", 1)[0] + "/" + new_name
+    out = shell(serial, f"[ -e {shlex.quote(target)} ] && echo EXISTS || "
+                        f"mv -- {shlex.quote(path)} {shlex.quote(target)}")
+    if "EXISTS" in out:
+        raise AdbError("כבר קיים קובץ בשם הזה")
+
+
+# ───────────────────────── הורדת רכיבים ─────────────────────────
+
+
+def download(url, target):
+    request = urllib.request.Request(url, headers={"User-Agent": "ADB-Studio"})
+    try:
+        with urllib.request.urlopen(request, timeout=60) as resp, open(target, "wb") as fh:
+            shutil.copyfileobj(resp, fh)
+    except OSError as exc:
+        raise AdbError(f"ההורדה נכשלה — בדקו את חיבור האינטרנט ({exc})")
+
+
+def safe_extract(archive, dest):
+    """חילוץ zip / tar.gz בלי לאפשר כתיבה מחוץ לתיקיית היעד."""
+    dest = dest.resolve()
+    if archive.suffix == ".zip":
+        with zipfile.ZipFile(archive) as zf:
+            if any(not (dest / n).resolve().is_relative_to(dest) for n in zf.namelist()):
+                raise AdbError("קובץ ההורדה לא תקין")
+            zf.extractall(dest)
+    else:
+        with tarfile.open(archive) as tf:
+            for m in tf.getmembers():
+                if not (dest / m.name).resolve().is_relative_to(dest) or m.issym() or m.islnk():
+                    raise AdbError("קובץ ההורדה לא תקין")
+            tf.extractall(dest)
+
+
+def install_scrcpy():
+    request = urllib.request.Request(
+        "https://api.github.com/repos/Genymobile/scrcpy/releases/latest",
+        headers={"User-Agent": "ADB-Studio", "Accept": "application/vnd.github+json"})
+    try:
+        with urllib.request.urlopen(request, timeout=30) as resp:
+            release = json.load(resp)
+    except OSError as exc:
+        raise AdbError(f"לא ניתן לבדוק גרסה עדכנית ({exc})")
+    machine = platform.machine().lower()
+    if IS_WINDOWS:
+        key = "win64" if sys.maxsize > 2 ** 32 else "win32"
+    elif IS_MAC:
+        key = "macos-aarch64" if machine in ("arm64", "aarch64") else "macos-x86_64"
+    elif machine in ("x86_64", "amd64"):
+        key = "linux-x86_64"
+    else:
+        raise AdbError("אין גרסה מוכנה של רכיב השיקוף למחשב הזה — התקינו scrcpy ידנית")
+    asset = next((a for a in release.get("assets", [])
+                  if a["name"].startswith(f"scrcpy-{key}-")
+                  and a["name"].endswith((".zip", ".tar.gz"))), None)
+    if not asset:
+        raise AdbError("לא נמצאה הורדה מתאימה")
+    tmp = Path(tempfile.mkdtemp(prefix="adb-studio-"))
+    try:
+        archive = tmp / ("scrcpy.zip" if asset["name"].endswith(".zip") else "scrcpy.tar.gz")
+        download(asset["browser_download_url"], archive)
+        out = tmp / "out"
+        out.mkdir()
+        safe_extract(archive, out)
+        folders = [p for p in out.iterdir() if p.is_dir()]
+        source = folders[0] if len(folders) == 1 else out
+        shutil.rmtree(USER_SCRCPY_DIR, ignore_errors=True)
+        USER_SCRCPY_DIR.parent.mkdir(parents=True, exist_ok=True)
+        shutil.move(str(source), str(USER_SCRCPY_DIR))
+        if not IS_WINDOWS:
+            for name in ("scrcpy", "adb"):
+                exe = USER_SCRCPY_DIR / name
+                if exe.exists():
+                    exe.chmod(exe.stat().st_mode | 0o755)
+    finally:
+        shutil.rmtree(tmp, ignore_errors=True)
+    global _scrcpy_path
+    _scrcpy_path = None
+    if not scrcpy_path():
+        raise AdbError("ההתקנה הסתיימה אבל רכיב השיקוף לא נמצא")
 
 
 def install_platform_tools():
@@ -393,18 +690,9 @@ def install_platform_tools():
     tmp = Path(tempfile.mkdtemp(prefix="adb-studio-"))
     try:
         archive = tmp / "platform-tools.zip"
-        try:
-            with urllib.request.urlopen(url, timeout=60) as resp, open(archive, "wb") as fh:
-                shutil.copyfileobj(resp, fh)
-        except OSError as exc:
-            raise AdbError(f"ההורדה נכשלה — בדקו את חיבור האינטרנט ({exc})")
+        download(url, archive)
         DATA_DIR.mkdir(parents=True, exist_ok=True)
-        root = DATA_DIR.resolve()
-        with zipfile.ZipFile(archive) as zf:
-            for member in zf.namelist():
-                if not (root / member).resolve().is_relative_to(root):
-                    raise AdbError("קובץ ההורדה לא תקין")
-            zf.extractall(root)
+        safe_extract(archive, DATA_DIR)
         if not IS_WINDOWS:
             for name in ("adb", "fastboot"):
                 exe = USER_TOOLS_DIR / name
@@ -416,6 +704,92 @@ def install_platform_tools():
     _adb_path = None
     if not adb_path():
         raise AdbError("ההתקנה הסתיימה אבל ADB לא נמצא")
+
+
+# ─────────────────────────── שיקוף מסך ───────────────────────────
+
+MIRRORS = {}  # serial -> {"proc", "log", "record"}
+
+QUALITY = {
+    "high": ["--video-bit-rate=16M"],
+    "balanced": ["--max-size=1920", "--video-bit-rate=8M"],
+    "saver": ["--max-size=1024", "--video-bit-rate=2M", "--max-fps=30"],
+}
+
+
+def media_dir():
+    base = Path.home() / "Videos"
+    folder = (base if base.is_dir() else Path.home()) / "ADB Studio"
+    folder.mkdir(parents=True, exist_ok=True)
+    return folder
+
+
+def mirror_running(serial):
+    entry = MIRRORS.get(serial)
+    return bool(entry) and entry["proc"].poll() is None
+
+
+def start_mirror(serial, opts, title):
+    exe = scrcpy_path()
+    if not exe:
+        raise AdbError("רכיב שיקוף המסך לא מותקן")
+    if mirror_running(serial):
+        return None
+    args = [exe, "--serial", serial, f"--window-title={title}", "--shortcut-mod=lctrl"]
+    args += QUALITY.get(opts.get("quality"), QUALITY["balanced"])
+    if opts.get("screenOff"):
+        args.append("--turn-screen-off")
+    if opts.get("stayAwake"):
+        args.append("--stay-awake")
+    if not opts.get("audio", True):
+        args.append("--no-audio")
+    if opts.get("readOnly"):
+        args.append("--no-control")
+    record = None
+    if opts.get("record"):
+        record = media_dir() / f"הקלטת מסך {time.strftime('%Y-%m-%d %H-%M-%S')}.mkv"
+        args.append(f"--record={record}")
+    env = dict(os.environ)
+    if adb_path():
+        env["ADB"] = adb_path()  # אותה גרסת adb — בלי התנגשויות שרת
+    log = tempfile.TemporaryFile()
+    proc = subprocess.Popen(args, stdin=subprocess.DEVNULL, stdout=log, stderr=subprocess.STDOUT,
+                            env=env, cwd=str(Path(exe).parent), creationflags=NO_WINDOW)
+    # scrcpy נכשל מהר אם משהו לא בסדר — מחכים רגע כדי להחזיר שגיאה ברורה
+    for _ in range(25):
+        if proc.poll() is not None:
+            log.seek(0)
+            text = log.read().decode("utf-8", "replace")
+            errors = [l.split(":", 1)[-1].strip() for l in text.splitlines() if "ERROR" in l]
+            raise AdbError("השיקוף נכשל: " + (errors[-1] if errors else text.strip()[-300:] or "שגיאה לא ידועה"))
+        time.sleep(0.1)
+    MIRRORS[serial] = {"proc": proc, "log": log, "record": str(record) if record else None}
+    return record
+
+
+def stop_mirror(serial):
+    entry = MIRRORS.pop(serial, None)
+    if entry and entry["proc"].poll() is None:
+        entry["proc"].terminate()
+        try:
+            entry["proc"].wait(5)  # נותנים ל-scrcpy לסגור את קובץ ההקלטה כראוי
+        except subprocess.TimeoutExpired:
+            entry["proc"].kill()
+    return entry["record"] if entry else None
+
+
+KEYS = {
+    "home": 3, "back": 4, "recents": 187, "power": 26, "volup": 24, "voldown": 25,
+    "mute": 164, "wake": 224, "play": 85, "next": 87, "prev": 88,
+}
+
+
+def open_folder(path):
+    if IS_WINDOWS:
+        os.startfile(path)  # noqa: S606
+    else:
+        subprocess.Popen(["open" if IS_MAC else "xdg-open", str(path)],
+                         stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
 
 
 # ─────────────────────────── שרת ───────────────────────────
@@ -451,12 +825,15 @@ class Handler(BaseHTTPRequestHandler):
         self.end_headers()
         self.wfile.write(data)
 
-    def send_file(self, path, filename):
+    def send_file(self, path, filename, inline=False):
         size = path.stat().st_size
         self.send_response(HTTPStatus.OK)
-        self.send_header("Content-Type", "application/octet-stream")
+        kind = (mimetypes.guess_type(filename)[0] if inline else None) or "application/octet-stream"
+        self.send_header("Content-Type", kind)
         self.send_header("Content-Length", str(size))
-        self.send_header("Content-Disposition", f"attachment; filename*=UTF-8''{quote(filename)}")
+        self.send_header("Cache-Control", "no-store")
+        self.send_header("Content-Disposition",
+                         f"{'inline' if inline else 'attachment'}; filename*=UTF-8''{quote(filename)}")
         self.end_headers()
         with open(path, "rb") as fh:
             shutil.copyfileobj(fh, self.wfile)
@@ -570,7 +947,7 @@ def api_status(req, data):
         match = re.search(r"^Version ([\d.]+)", out, re.M) or re.search(r"version ([\d.]+)", out)
         version = match.group(1) if match else None
     return {"adb": bool(path), "path": path, "version": version,
-            "os": platform.system()}
+            "scrcpy": bool(scrcpy_path()), "os": platform.system()}
 
 
 @route("POST", "setup")
@@ -632,9 +1009,73 @@ def api_disconnect(req, data):
     return {"message": "המכשיר נותק"}
 
 
+@route("POST", "discover")
+def api_discover(req, data):
+    return {"devices": discover()}
+
+
+@route("POST", "qr/start")
+def api_qr_start(req, data):
+    return qr_start()
+
+
+@route("POST", "qr/poll")
+def api_qr_poll(req, data):
+    return qr_poll(data.get("session"))
+
+
+@route("POST", "device/key")
+def api_key(req, data):
+    code = KEYS.get(data.get("key"))
+    if code is None:
+        raise AdbError("מקש לא מוכר")
+    shell(need_serial(data), f"input keyevent {code}")
+    return {"ok": True}
+
+
+@route("POST", "mirror/setup")
+def api_mirror_setup(req, data):
+    install_scrcpy()
+    return {"message": "רכיב שיקוף המסך הותקן"}
+
+
+@route("POST", "mirror/start")
+def api_mirror_start(req, data):
+    serial = need_serial(data)
+    record = start_mirror(serial, data.get("options") or {}, data.get("title") or APP_NAME)
+    return {"message": "השיקוף נפתח בחלון נפרד" + (" ומוקלט" if record else ""),
+            "record": str(record) if record else None}
+
+
+@route("POST", "mirror/stop")
+def api_mirror_stop(req, data):
+    record = stop_mirror(need_serial(data))
+    return {"message": "השיקוף נסגר" + (" — ההקלטה נשמרה" if record else ""), "record": record}
+
+
+@route("POST", "mirror/status")
+def api_mirror_status(req, data):
+    serial = need_serial(data)
+    running = mirror_running(serial)
+    if not running and serial in MIRRORS:  # המשתמש סגר את החלון בעצמו
+        MIRRORS.pop(serial)
+    return {"running": running, "installed": bool(scrcpy_path())}
+
+
+@route("POST", "open-media")
+def api_open_media(req, data):
+    open_folder(media_dir())
+    return {"message": "התיקייה נפתחה"}
+
+
 @route("POST", "apps")
 def api_apps(req, data):
-    return {"apps": list_apps(need_serial(data), bool(data.get("system")))}
+    return {"apps": list_apps(need_serial(data))}
+
+
+@route("POST", "apps/info")
+def api_app_info(req, data):
+    return app_info(need_serial(data), data.get("package"))
 
 
 @route("POST", "apps/action")
@@ -663,12 +1104,7 @@ def api_install(req, data):
     serial = need_serial(data)
     tmpdir, apk = req.receive_upload({"name": [data.get("name", "app.apk")]})
     try:
-        if apk.suffix.lower() != ".apk":
-            raise AdbError("ניתן להתקין רק קבצי APK")
-        _, out, err = run_adb("install", "-r", str(apk), serial=serial, timeout=600)
-        text = out + err
-        if "Success" not in text:
-            raise AdbError(friendly(text))
+        install_package(serial, apk)
     finally:
         shutil.rmtree(tmpdir, ignore_errors=True)
     return {"message": f"{apk.name} הותקן בהצלחה"}
@@ -686,6 +1122,12 @@ def api_delete(req, data):
         raise AdbError("לא ניתן למחוק תיקייה זו")
     shell(need_serial(data), f"rm -rf -- {shlex.quote(path)}")
     return {"message": "נמחק"}
+
+
+@route("POST", "files/rename")
+def api_rename(req, data):
+    rename_file(need_serial(data), data.get("path"), data.get("name"))
+    return {"message": "השם שונה"}
 
 
 @route("POST", "files/mkdir")
@@ -715,10 +1157,13 @@ def api_pull(req, data):
     tmpdir = Path(tempfile.mkdtemp(prefix="adb-studio-"))
     try:
         local = tmpdir / name
-        adb_ok("pull", remote, str(local), serial=serial, timeout=1800)
-        if not local.is_file():
-            raise AdbError("ניתן להוריד קבצים בלבד")
-        req.send_file(local, name)
+        adb_ok("pull", remote, str(local), serial=serial, timeout=3600)
+        if local.is_dir():  # תיקייה שלמה — נשלחת כ-zip
+            local = Path(shutil.make_archive(str(tmpdir / name), "zip", local))
+            name = local.name
+        elif not local.is_file():
+            raise AdbError("ההורדה נכשלה")
+        req.send_file(local, name, inline=bool(data.get("inline")))
     finally:
         shutil.rmtree(tmpdir, ignore_errors=True)
 
