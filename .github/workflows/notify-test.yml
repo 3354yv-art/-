@@ -1,0 +1,20 @@
+name: Test Ampere notification
+
+on:
+  workflow_dispatch:
+
+permissions:
+  issues: write
+
+jobs:
+  notify:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Open test issue (same mechanism as ampere.yml on success)
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh issue create --repo "$GITHUB_REPOSITORY" \
+            --title "בדיקה: התראה משרת ה-Ampere" \
+            --assignee "$GITHUB_REPOSITORY_OWNER" \
+            --body "@$GITHUB_REPOSITORY_OWNER זו רק בדיקה - השרת עוד לא נוצר. ככה ייראה המייל כשהוא ייווצר. אפשר לסגור את ה-Issue הזה."
