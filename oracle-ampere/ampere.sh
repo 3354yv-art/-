@@ -1,5 +1,5 @@
 #!/bin/bash
-# Retries creating an OCI Ampere A1 instance (2 OCPU / 12GB) every 2 minutes until capacity is available.
+# Retries creating an OCI Ampere A1 instance (2 OCPU / 12GB) about every 2 minutes until capacity is available.
 # Optional env: SSH_PUBLIC_KEY (use this key instead of generating one), MAX_SECONDS (stop after this long).
 
 COMPARTMENT_ID="ocid1.tenancy.oc1..aaaaaaaa4kvrhyup67paovpq2tulihj6miktcnlzxgtuy2faqkht7olgursq"
@@ -8,7 +8,8 @@ NAME="ampere-server"
 SHAPE="VM.Standard.A1.Flex"
 OCPUS=2
 MEMORY_GB=12
-SLEEP=120
+# A capacity-rejected launch call itself takes ~100s, so this keeps attempts ~2 minutes apart.
+SLEEP=20
 MAX_SECONDS="${MAX_SECONDS:-0}"
 
 if [ -n "${SSH_PUBLIC_KEY:-}" ]; then
@@ -37,6 +38,7 @@ show_result() {
         echo "[+] התחברות:  ssh -i oci_ampere.key ubuntu@$IP"
     fi
     echo "=============================================="
+    [ -n "${GITHUB_OUTPUT:-}" ] && echo "done=true" >> "$GITHUB_OUTPUT"
     exit 0
 }
 
@@ -90,6 +92,7 @@ while true; do
         --query 'data.id' --raw-output 2>&1)
     if [[ "$OUT" == ocid1.instance* ]]; then
         echo "[+] הצלחה! השרת נוצר"
+        [ -n "${GITHUB_OUTPUT:-}" ] && echo "created=true" >> "$GITHUB_OUTPUT"
         show_result "$OUT"
     elif echo "$OUT" | grep -qi "capacity"; then
         echo "[-] אין מקום פנוי כרגע (Out of capacity)"
