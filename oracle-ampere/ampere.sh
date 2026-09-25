@@ -1,5 +1,6 @@
 #!/bin/bash
 # Retries creating an OCI Ampere A1 instance (2 OCPU / 12GB) every 2 minutes until capacity is available.
+# Optional env: SSH_PUBLIC_KEY (use this key instead of generating one), MAX_SECONDS (stop after this long).
 
 COMPARTMENT_ID="ocid1.tenancy.oc1..aaaaaaaa4kvrhyup67paovpq2tulihj6miktcnlzxgtuy2faqkht7olgursq"
 AD="oXzQ:IL-JERUSALEM-1-AD-1"
@@ -8,24 +9,42 @@ SHAPE="VM.Standard.A1.Flex"
 OCPUS=2
 MEMORY_GB=12
 SLEEP=120
-KEY="$HOME/.ssh/oci_ampere"
+MAX_SECONDS="${MAX_SECONDS:-0}"
 
-mkdir -p "$HOME/.ssh"
-[ -f "$KEY" ] || ssh-keygen -t rsa -b 4096 -N "" -f "$KEY" -q
-cp "$KEY" "$HOME/oci_ampere.key"
+if [ -n "${SSH_PUBLIC_KEY:-}" ]; then
+    PUB_KEY_FILE="$(mktemp)"
+    printf '%s\n' "$SSH_PUBLIC_KEY" > "$PUB_KEY_FILE"
+else
+    KEY="$HOME/.ssh/oci_ampere"
+    mkdir -p "$HOME/.ssh"
+    [ -f "$KEY" ] || ssh-keygen -t rsa -b 4096 -N "" -f "$KEY" -q
+    cp "$KEY" "$HOME/oci_ampere.key"
+    PUB_KEY_FILE="$KEY.pub"
+fi
 
 show_result() {
     echo "[*] ממתין שהשרת יעלה..."
     oci compute instance get --instance-id "$1" --wait-for-state RUNNING >/dev/null 2>&1
-    IP=$(oci compute instance list-vnics --instance-id "$1" --query 'data[0]."public-ip"' --raw-output)
     echo
     echo "=============================================="
-    echo "[+] השרת מוכן!  IP: $IP"
-    echo "[+] להורדת המפתח: Menu -> Download -> oci_ampere.key"
-    echo "[+] התחברות:  ssh -i oci_ampere.key ubuntu@$IP"
+    if [ -n "${GITHUB_ACTIONS:-}" ]; then
+        # Public repo: logs are public, so don't print the IP here.
+        echo "[+] השרת מוכן! את ה-IP רואים בקונסולה של אורקל (Compute -> Instances)"
+    else
+        IP=$(oci compute instance list-vnics --instance-id "$1" --query 'data[0]."public-ip"' --raw-output)
+        echo "[+] השרת מוכן!  IP: $IP"
+        echo "[+] להורדת המפתח: Menu -> Download -> oci_ampere.key"
+        echo "[+] התחברות:  ssh -i oci_ampere.key ubuntu@$IP"
+    fi
     echo "=============================================="
     exit 0
 }
+
+if ! AUTH_ERR=$(oci iam availability-domain list -c "$COMPARTMENT_ID" 2>&1 >/dev/null); then
+    echo "[!] ההתחברות לאורקל נכשלה - בדוק את פרטי ה-API Key:"
+    echo "$AUTH_ERR"
+    exit 1
+fi
 
 EXISTING=$(oci compute instance list -c "$COMPARTMENT_ID" --display-name "$NAME" \
     --lifecycle-state RUNNING --query 'data[0].id' --raw-output 2>/dev/null)
@@ -54,19 +73,17 @@ if [ -z "$SUBNET_ID" ]; then
     SUBNET_ID=$(oci network subnet create -c "$COMPARTMENT_ID" --vcn-id "$VCN_ID" --cidr-block 10.0.0.0/24 \
         --display-name ampere-subnet --wait-for-state AVAILABLE --query 'data.id' --raw-output)
 fi
-echo "[+] Subnet: $SUBNET_ID"
+echo "[+] Subnet נמצא"
 
 attempt=0
 while true; do
     attempt=$((attempt + 1))
     echo "[*] ניסיון #$attempt - $(date '+%H:%M:%S')"
-
     OUT=$(oci compute instance launch -c "$COMPARTMENT_ID" --availability-domain "$AD" \
         --shape "$SHAPE" --shape-config "{\"ocpus\":$OCPUS,\"memoryInGBs\":$MEMORY_GB}" \
         --image-id "$IMAGE_ID" --subnet-id "$SUBNET_ID" --assign-public-ip true \
-        --display-name "$NAME" --ssh-authorized-keys-file "$KEY.pub" \
+        --display-name "$NAME" --ssh-authorized-keys-file "$PUB_KEY_FILE" \
         --query 'data.id' --raw-output 2>&1)
-
     if [[ "$OUT" == ocid1.instance* ]]; then
         echo "[+] הצלחה! השרת נוצר"
         show_result "$OUT"
@@ -79,6 +96,10 @@ while true; do
         exit 1
     else
         echo "[!] שגיאה: $OUT"
+    fi
+    if [ "$MAX_SECONDS" -gt 0 ] && [ "$SECONDS" -ge "$MAX_SECONDS" ]; then
+        echo "[*] נגמר זמן הריצה הזה, הריצה הבאה תמשיך"
+        exit 0
     fi
     sleep "$SLEEP"
 done
