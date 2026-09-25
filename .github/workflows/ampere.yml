@@ -1,0 +1,73 @@
+name: Ampere A1 retry
+
+on:
+  # Hourly trigger + shared concurrency group: a new run queues while one is active,
+  # so the ~6h runs restart back to back until the instance exists.
+  schedule:
+    - cron: "0 * * * *"
+  workflow_dispatch:
+
+concurrency:
+  group: ampere
+  cancel-in-progress: false
+
+permissions:
+  contents: read
+  actions: write
+  issues: write
+
+jobs:
+  launch:
+    runs-on: ubuntu-latest
+    timeout-minutes: 355
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Install OCI CLI
+        run: pip install --quiet oci-cli
+
+      - name: Configure OCI
+        env:
+          OCI_USER: ${{ secrets.OCI_USER }}
+          OCI_FINGERPRINT: ${{ secrets.OCI_FINGERPRINT }}
+          OCI_PRIVATE_KEY: ${{ secrets.OCI_PRIVATE_KEY }}
+        run: |
+          mkdir -p ~/.oci
+          printf '%s\n' "$OCI_PRIVATE_KEY" > ~/.oci/key.pem
+          cat > ~/.oci/config <<EOF
+          [DEFAULT]
+          user=$OCI_USER
+          fingerprint=$OCI_FINGERPRINT
+          tenancy=ocid1.tenancy.oc1..aaaaaaaa4kvrhyup67paovpq2tulihj6miktcnlzxgtuy2faqkht7olgursq
+          region=il-jerusalem-1
+          key_file=$HOME/.oci/key.pem
+          EOF
+          chmod 600 ~/.oci/config ~/.oci/key.pem
+
+      - name: Try to launch Ampere instance
+        id: launch
+        env:
+          SSH_PUBLIC_KEY: ${{ secrets.SSH_PUBLIC_KEY }}
+          MAX_SECONDS: "20700"
+        run: bash oracle-ampere/ampere.sh
+
+      - name: Notify by issue
+        if: steps.launch.outputs.created == 'true'
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh issue create --repo "$GITHUB_REPOSITORY" \
+            --title "שרת ה-Ampere נוצר!" \
+            --assignee "$GITHUB_REPOSITORY_OWNER" \
+            --body "@$GITHUB_REPOSITORY_OWNER השרת ampere-server נוצר ופועל. את ה-IP רואים בקונסולה של אורקל: Compute -> Instances. התחברות: ssh -i oci_ampere.key ubuntu@<IP>"
+
+      # Stop retrying once the server exists, so deleting it later won't trigger a re-create.
+      - name: Disable this workflow
+        if: steps.launch.outputs.done == 'true'
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: gh workflow disable ampere.yml --repo "$GITHUB_REPOSITORY"
