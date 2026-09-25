@@ -47,7 +47,7 @@ if ! AUTH_ERR=$(oci iam availability-domain list -c "$COMPARTMENT_ID" 2>&1 >/dev
 fi
 
 EXISTING=$(oci compute instance list -c "$COMPARTMENT_ID" --display-name "$NAME" \
-    --lifecycle-state RUNNING --query 'data[0].id' --raw-output 2>/dev/null)
+    --query 'data[?"lifecycle-state"!=`"TERMINATED"` && "lifecycle-state"!=`"TERMINATING"`] | [0].id' --raw-output 2>/dev/null)
 [ -n "$EXISTING" ] && { echo "[+] השרת כבר קיים"; show_result "$EXISTING"; }
 
 for v in 24.04 22.04; do
@@ -79,6 +79,10 @@ attempt=0
 while true; do
     attempt=$((attempt + 1))
     echo "[*] ניסיון #$attempt - $(date '+%H:%M:%S')"
+    # Another runner (e.g. Cloud Shell) may have created it meanwhile; avoid a duplicate.
+    EXISTING=$(oci compute instance list -c "$COMPARTMENT_ID" --display-name "$NAME" \
+        --query 'data[?"lifecycle-state"!=`"TERMINATED"` && "lifecycle-state"!=`"TERMINATING"`] | [0].id' --raw-output 2>/dev/null)
+    [ -n "$EXISTING" ] && { echo "[+] השרת כבר קיים"; show_result "$EXISTING"; }
     OUT=$(oci compute instance launch -c "$COMPARTMENT_ID" --availability-domain "$AD" \
         --shape "$SHAPE" --shape-config "{\"ocpus\":$OCPUS,\"memoryInGBs\":$MEMORY_GB}" \
         --image-id "$IMAGE_ID" --subnet-id "$SUBNET_ID" --assign-public-ip true \
