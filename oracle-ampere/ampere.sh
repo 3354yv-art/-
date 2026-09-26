@@ -8,8 +8,7 @@ NAME="ampere-server"
 SHAPE="VM.Standard.A1.Flex"
 OCPUS=2
 MEMORY_GB=12
-# A capacity-rejected launch call itself takes ~100s, so this keeps attempts ~2 minutes apart.
-SLEEP=20
+SLEEP=120
 MAX_SECONDS="${MAX_SECONDS:-0}"
 
 if [ -n "${SSH_PUBLIC_KEY:-}" ]; then
@@ -85,7 +84,9 @@ while true; do
     EXISTING=$(oci compute instance list -c "$COMPARTMENT_ID" --display-name "$NAME" \
         --query 'data[?"lifecycle-state"!=`"TERMINATED"` && "lifecycle-state"!=`"TERMINATING"`] | [0].id' --raw-output 2>/dev/null)
     [ -n "$EXISTING" ] && { echo "[+] השרת כבר קיים"; show_result "$EXISTING"; }
-    OUT=$(oci compute instance launch -c "$COMPARTMENT_ID" --availability-domain "$AD" \
+    WAIT=$SLEEP
+    # --no-retry: the CLI otherwise re-sends up to 7 launches per attempt, which triggers TooManyRequests.
+    OUT=$(oci --no-retry compute instance launch -c "$COMPARTMENT_ID" --availability-domain "$AD" \
         --shape "$SHAPE" --shape-config "{\"ocpus\":$OCPUS,\"memoryInGBs\":$MEMORY_GB}" \
         --image-id "$IMAGE_ID" --subnet-id "$SUBNET_ID" --assign-public-ip true \
         --display-name "$NAME" --ssh-authorized-keys-file "$PUB_KEY_FILE" \
@@ -97,7 +98,8 @@ while true; do
     elif echo "$OUT" | grep -qi "capacity"; then
         echo "[-] אין מקום פנוי כרגע (Out of capacity)"
     elif echo "$OUT" | grep -qi "TooManyRequests"; then
-        echo "[-] יותר מדי בקשות, ממתין"
+        echo "[-] יותר מדי בקשות, ממתין יותר זמן"
+        WAIT=$((SLEEP * 2))
     elif echo "$OUT" | grep -qi "LimitExceeded"; then
         echo "[!] עברת את מכסת ה-Free Tier (כנראה כבר יש לך שרת Ampere). עוצר."
         exit 1
@@ -108,5 +110,5 @@ while true; do
         echo "[*] נגמר זמן הריצה הזה, הריצה הבאה תמשיך"
         exit 0
     fi
-    sleep "$SLEEP"
+    sleep "$WAIT"
 done
