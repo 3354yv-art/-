@@ -1,0 +1,696 @@
+<!doctype html>
+<html lang="he" dir="rtl">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Cipher Labs</title>
+<meta name="description" content="Cipher Labs – כלים חינמיים להורדה. בלי פרסומות, בלי מעקב.">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Karantina:wght@400;700&family=IBM+Plex+Sans+Hebrew:wght@300;400;600&family=IBM+Plex+Mono:wght@400;500&display=swap">
+<style>
+  :root {
+    color-scheme: dark;
+    --bg: #07050d;
+    --surface: #110c1d;
+    --surface-2: #181128;
+    --line: #2a2141;
+    --text: #ece6f7;
+    --muted: #9d92b8;
+    --accent: #b46cff;
+    --accent-soft: rgba(180, 108, 255, 0.16);
+    --ok: #4be3a4;
+    --warn: #ffc55c;
+    --display: "Karantina", "Arial Narrow", "Segoe UI", sans-serif;
+    --body: "IBM Plex Sans Hebrew", "Segoe UI", Arial, sans-serif;
+    --mono: "IBM Plex Mono", ui-monospace, Consolas, monospace;
+    --radius: 14px;
+  }
+  * { box-sizing: border-box; }
+  [hidden] { display: none !important; }
+  html { scroll-behavior: smooth; }
+  body {
+    margin: 0;
+    background: var(--bg);
+    color: var(--text);
+    font: 400 16px/1.7 var(--body);
+    -webkit-font-smoothing: antialiased;
+  }
+  #sky { position: fixed; inset: 0; width: 100%; height: 100%; z-index: 0; pointer-events: none; }
+  .app { position: relative; z-index: 1; padding-inline: 16px; }
+  .wrap { max-width: 1080px; margin-inline: auto; }
+  a { color: inherit; }
+  :focus-visible { outline: 2px solid var(--accent); outline-offset: 3px; border-radius: 6px; }
+
+  /* ---------- nav ---------- */
+  .nav {
+    position: sticky; top: env(safe-area-inset-top, 0px); z-index: 5;
+    display: flex; align-items: center; justify-content: space-between; gap: 16px;
+    padding-block: 14px;
+    background: linear-gradient(var(--bg) 55%, transparent);
+  }
+  .logo { display: flex; align-items: center; gap: 10px; text-decoration: none; }
+  .logo svg { width: 30px; height: 30px; }
+  .logo b { font: 700 30px/1 var(--display); letter-spacing: 0.04em; }
+  .nav-links { display: flex; align-items: center; gap: 22px; font-size: 15px; }
+  .nav-links a { text-decoration: none; color: var(--muted); transition: color .2s; }
+  .nav-links a:hover { color: var(--text); }
+  .term-btn {
+    font: 500 13px var(--mono); color: var(--accent);
+    background: var(--accent-soft); border: 1px solid var(--line);
+    padding: 6px 10px; border-radius: 8px; cursor: pointer;
+  }
+  .term-btn:hover { border-color: var(--accent); }
+  @media (max-width: 640px) { .nav-links a { display: none; } }
+
+  /* ---------- hero ---------- */
+  .hero { padding-block: 72px 56px; }
+  .eyebrow {
+    font: 500 13px var(--mono); color: var(--accent); letter-spacing: 0.08em;
+    direction: ltr; text-align: right;
+  }
+  .hero h1 {
+    margin: 10px 0 0;
+    font: 700 clamp(84px, 17vw, 180px)/0.86 var(--display);
+    letter-spacing: 0.01em;
+    direction: ltr; text-align: right;
+    text-shadow: 0 0 40px rgba(180, 108, 255, 0.35);
+  }
+  .hero h1 .dim { color: var(--accent); }
+  .hero p.lead { max-width: 34em; margin: 22px 0 0; font-size: 19px; color: var(--muted); text-wrap: balance; }
+  .hero p.lead strong { color: var(--text); font-weight: 600; }
+  .cta { display: flex; flex-wrap: wrap; gap: 12px; margin-top: 30px; }
+  .btn {
+    display: inline-flex; align-items: center; gap: 8px;
+    font: 600 16px var(--body); text-decoration: none; cursor: pointer;
+    padding: 12px 22px; border-radius: 10px; border: 1px solid var(--line);
+    background: var(--surface); color: var(--text);
+    transition: border-color .2s, transform .2s, box-shadow .2s;
+  }
+  .btn:hover { border-color: var(--accent); transform: translateY(-2px); }
+  .btn.primary {
+    background: var(--accent); border-color: var(--accent); color: #12081f;
+    box-shadow: 0 0 28px rgba(180, 108, 255, 0.45);
+  }
+  .btn.primary:hover { box-shadow: 0 0 44px rgba(180, 108, 255, 0.7); }
+  .btn[aria-disabled="true"] { opacity: .5; cursor: not-allowed; transform: none; }
+  .facts {
+    display: flex; flex-wrap: wrap; gap: 10px 28px; margin-top: 44px;
+    font: 400 14px var(--mono); color: var(--muted);
+  }
+  .facts span b { color: var(--text); font-weight: 500; }
+
+  /* ---------- sections ---------- */
+  section.block { padding-block: 56px; }
+  .head { display: flex; flex-wrap: wrap; align-items: end; justify-content: space-between; gap: 16px; margin-bottom: 26px; }
+  .head h2 { margin: 0; font: 700 clamp(48px, 8vw, 72px)/0.9 var(--display); letter-spacing: 0.02em; }
+  .head p { margin: 6px 0 0; color: var(--muted); }
+  .chips { display: flex; flex-wrap: wrap; gap: 8px; }
+  .chip {
+    font: 400 14px var(--body); color: var(--muted); cursor: pointer;
+    background: transparent; border: 1px solid var(--line); border-radius: 999px; padding: 6px 14px;
+  }
+  .chip[aria-pressed="true"] { color: var(--text); border-color: var(--accent); background: var(--accent-soft); }
+
+  /* ---------- tool cards ---------- */
+  .grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(290px, 1fr)); gap: 18px; }
+  .card {
+    --mx: 50%; --my: 50%;
+    position: relative; display: flex; flex-direction: column; gap: 14px;
+    padding: 24px; border-radius: var(--radius);
+    background: var(--surface); border: 1px solid var(--line);
+    text-decoration: none; overflow: hidden;
+    transition: transform .25s ease, border-color .25s;
+    transform: perspective(900px) rotateX(var(--rx, 0deg)) rotateY(var(--ry, 0deg));
+  }
+  .card::before {
+    content: ""; position: absolute; inset: 0; pointer-events: none; opacity: 0; transition: opacity .3s;
+    background: radial-gradient(360px circle at var(--mx) var(--my), rgba(180, 108, 255, 0.22), transparent 60%);
+  }
+  .card:hover { border-color: rgba(180, 108, 255, 0.6); }
+  .card:hover::before { opacity: 1; }
+  .card-top { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
+  .icon {
+    width: 48px; height: 48px; border-radius: 12px; display: grid; place-items: center;
+    background: var(--accent-soft); border: 1px solid var(--line); color: var(--accent);
+  }
+  .icon svg { width: 26px; height: 26px; }
+  .tag { font: 500 12px var(--mono); padding: 3px 9px; border-radius: 999px; border: 1px solid currentColor; }
+  .tag.new { color: var(--ok); }
+  .tag.soon { color: var(--warn); }
+  .card h3 { margin: 0; font: 700 34px/1 var(--display); letter-spacing: 0.02em; direction: ltr; text-align: right; }
+  .card .he { margin: -8px 0 0; color: var(--accent); font-size: 14px; }
+  .card p.desc { margin: 0; color: var(--muted); font-size: 15px; }
+  .meta { display: flex; flex-wrap: wrap; gap: 6px 16px; margin-top: auto; padding-top: 12px; border-top: 1px dashed var(--line); font: 400 13px var(--mono); color: var(--muted); }
+  .more { font-weight: 600; font-size: 14px; color: var(--text); }
+
+  /* ---------- changelog ---------- */
+  .log { list-style: none; margin: 0; padding: 0; border-inline-start: 1px solid var(--line); }
+  .log li { position: relative; padding: 0 22px 26px; }
+  .log li::before {
+    content: ""; position: absolute; inset-inline-start: -5px; top: 8px;
+    width: 9px; height: 9px; border-radius: 50%; background: var(--accent); box-shadow: 0 0 12px var(--accent);
+  }
+  .log time { font: 400 13px var(--mono); color: var(--muted); font-variant-numeric: tabular-nums; }
+  .log b { display: block; font-weight: 600; }
+  .log span { color: var(--muted); font-size: 15px; }
+
+  /* ---------- contact ---------- */
+  .contact { display: grid; grid-template-columns: 1fr 1.2fr; gap: 32px; align-items: start; }
+  @media (max-width: 760px) { .contact { grid-template-columns: 1fr; } }
+  .contact .note { color: var(--muted); }
+  .contact .note ul { padding-inline-start: 18px; margin: 12px 0 0; }
+  form { display: grid; gap: 14px; padding: 24px; border-radius: var(--radius); background: var(--surface); border: 1px solid var(--line); }
+  label { display: grid; gap: 6px; font-size: 14px; color: var(--muted); }
+  input, select, textarea {
+    font: 400 16px var(--body); color: var(--text); background: var(--bg);
+    border: 1px solid var(--line); border-radius: 10px; padding: 10px 12px; width: 100%;
+  }
+  input:focus, select:focus, textarea:focus { outline: none; border-color: var(--accent); box-shadow: 0 0 0 3px var(--accent-soft); }
+  textarea { min-height: 120px; resize: vertical; }
+  .form-status { margin: 0; font-size: 14px; color: var(--ok); }
+
+  footer { padding-block: 40px 56px; color: var(--muted); font: 400 13px var(--mono); display: flex; flex-wrap: wrap; justify-content: space-between; gap: 12px; border-top: 1px solid var(--line); }
+
+  /* ---------- tool detail ---------- */
+  .detail { padding-block: 40px 24px; }
+  .back { font: 500 14px var(--mono); color: var(--muted); text-decoration: none; }
+  .back:hover { color: var(--accent); }
+  .detail-hero { display: grid; grid-template-columns: 1.1fr 1fr; gap: 36px; align-items: center; margin-top: 26px; }
+  @media (max-width: 820px) { .detail-hero { grid-template-columns: 1fr; } }
+  .detail h1 { margin: 0; font: 700 clamp(64px, 12vw, 112px)/0.88 var(--display); direction: ltr; text-align: right; }
+  .detail .he { margin: 4px 0 0; color: var(--accent); font-size: 18px; }
+  .detail p.long { color: var(--muted); font-size: 17px; max-width: 36em; }
+  .specs { display: grid; grid-template-columns: repeat(auto-fit, minmax(130px, 1fr)); gap: 1px; margin: 22px 0; background: var(--line); border: 1px solid var(--line); border-radius: 12px; overflow: hidden; }
+  .specs div { background: var(--surface); padding: 12px 14px; }
+  .specs dt { font-size: 12px; color: var(--muted); }
+  .specs dd { margin: 2px 0 0; font: 500 15px var(--mono); direction: ltr; text-align: right; }
+  .cols { display: grid; grid-template-columns: 1fr 1fr; gap: 28px; margin-top: 48px; }
+  @media (max-width: 820px) { .cols { grid-template-columns: 1fr; } }
+  .cols h3 { margin: 0 0 12px; font: 700 34px/1 var(--display); letter-spacing: 0.02em; }
+  .steps { margin: 0; padding-inline-start: 22px; }
+  .steps li { margin-bottom: 10px; }
+  .steps li::marker { color: var(--accent); font-family: var(--mono); }
+  .feats { list-style: none; margin: 0; padding: 0; display: grid; gap: 10px; }
+  .feats li { display: flex; gap: 10px; }
+  .feats li::before { content: "▸"; color: var(--accent); }
+  .types { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 14px; }
+  .types span { font: 400 12px var(--mono); padding: 3px 8px; border-radius: 6px; background: var(--surface-2); border: 1px solid var(--line); direction: ltr; }
+  .callout { margin-top: 18px; padding: 14px 16px; border-radius: 10px; background: rgba(255, 197, 92, 0.08); border: 1px solid rgba(255, 197, 92, 0.35); font-size: 14px; }
+
+  /* mock screens */
+  .screen { border-radius: 12px; border: 1px solid var(--line); background: #0b0814; overflow: hidden; box-shadow: 0 30px 80px rgba(0, 0, 0, 0.6), 0 0 60px rgba(180, 108, 255, 0.12); }
+  .screen-bar { display: flex; align-items: center; gap: 8px; padding: 10px 14px; background: var(--surface-2); border-bottom: 1px solid var(--line); font: 400 12px var(--mono); color: var(--muted); }
+  .screen-bar i { width: 10px; height: 10px; border-radius: 50%; background: var(--line); }
+  .screen-body { padding: 16px; overflow-x: auto; }
+  .screen pre { margin: 0; font: 400 13px/1.8 var(--mono); direction: ltr; text-align: left; color: var(--muted); white-space: pre; }
+  .screen pre .ok { color: var(--ok); }
+  .screen pre .bad { color: #ff7a8a; }
+  .screen pre .hi { color: var(--text); }
+  .win-tabs { display: flex; gap: 4px; margin-bottom: 12px; }
+  .win-tabs span { font-size: 13px; padding: 5px 12px; border-radius: 6px; color: var(--muted); }
+  .win-tabs span.on { background: var(--accent-soft); color: var(--text); }
+  .files { width: 100%; border-collapse: collapse; font-size: 13px; }
+  .files th { text-align: right; font-weight: 400; color: var(--muted); padding: 6px 8px; border-bottom: 1px solid var(--line); }
+  .files td { padding: 7px 8px; border-bottom: 1px solid rgba(42, 33, 65, 0.6); font-variant-numeric: tabular-nums; }
+  .files td.n { direction: ltr; text-align: right; font-family: var(--mono); }
+  .files td.q { color: var(--ok); }
+
+  /* ---------- terminal ---------- */
+  .term-shade { position: fixed; inset: 0; z-index: 20; background: rgba(4, 2, 8, 0.7); backdrop-filter: blur(4px); display: grid; place-items: center; padding: 16px; }
+  .term {
+    width: min(720px, 100%); height: min(460px, 80vh); display: flex; flex-direction: column;
+    border-radius: 12px; border: 1px solid var(--accent); background: #06040b;
+    box-shadow: 0 0 60px rgba(180, 108, 255, 0.35);
+    direction: ltr; text-align: left; font: 400 14px/1.6 var(--mono);
+  }
+  .term-out { flex: 1; overflow-y: auto; padding: 16px; white-space: pre-wrap; word-break: break-word; color: #cfc6e6; }
+  .term-out .p { color: var(--accent); }
+  .term-out .ok { color: var(--ok); }
+  .term-out .err { color: #ff7a8a; }
+  .term-in { display: flex; gap: 8px; align-items: center; padding: 10px 16px; border-top: 1px solid var(--line); }
+  .term-in span { color: var(--accent); }
+  .term-in input { flex: 1; background: transparent; border: 0; padding: 4px 0; font: inherit; color: var(--text); box-shadow: none; }
+
+  @media (prefers-reduced-motion: reduce) {
+    html { scroll-behavior: auto; }
+    .card, .btn { transition: none; }
+  }
+</style>
+</head>
+<body>
+<canvas id="sky" aria-hidden="true"></canvas>
+
+<div class="app">
+  <div class="wrap">
+    <nav class="nav">
+      <a class="logo" href="#top" aria-label="Cipher Labs – דף הבית">
+        <svg viewBox="0 0 32 32" fill="none" aria-hidden="true">
+          <path d="M16 2 28 9v14L16 30 4 23V9Z" stroke="#b46cff" stroke-width="2"/>
+          <path d="M20 11.5a6 6 0 1 0 0 9" stroke="#ece6f7" stroke-width="2.4" stroke-linecap="round"/>
+        </svg>
+        <b>CIPHER LABS</b>
+      </a>
+      <div class="nav-links">
+        <a href="#tools">תוכנות</a>
+        <a href="#updates">עדכונים</a>
+        <a href="#contact">צור קשר</a>
+        <button class="term-btn" id="openTerm" type="button" title="פתיחת הטרמינל (מקש ~)">&gt;_</button>
+      </div>
+    </nav>
+
+    <main id="home">
+      <header class="hero" id="top">
+        <div class="eyebrow">// anonymous software lab</div>
+        <h1 id="title"><span class="dim">CIPHER</span> LABS</h1>
+        <p class="lead"><strong>כלים חינמיים. בלי פרסומות. בלי מעקב.</strong><br>
+          תוכנות קטנות שפותרות בעיות אמיתיות: משחזרות קבצים שנמחקו ומקימות שרתים בענן. מי בנה אותן? זה נשאר סוד.</p>
+        <div class="cta">
+          <a class="btn primary" href="#tools">לכל התוכנות ↓</a>
+          <button class="btn" type="button" id="heroTerm">פתח טרמינל &gt;_</button>
+        </div>
+        <div class="facts">
+          <span><b id="toolCount">2</b> כלים</span>
+          <span><b>0</b> פרסומות</span>
+          <span><b>0</b> עוגיות מעקב</span>
+          <span><b>100%</b> קוד פתוח</span>
+        </div>
+      </header>
+
+      <section class="block" id="tools">
+        <div class="head">
+          <div>
+            <h2>התוכנות</h2>
+            <p>לחץ על תוכנה כדי לראות פרטים, הוראות והורדה.</p>
+          </div>
+          <div class="chips" role="group" aria-label="סינון לפי קטגוריה" id="chips"></div>
+        </div>
+        <div class="grid" id="grid"></div>
+      </section>
+
+      <section class="block" id="updates">
+        <div class="head"><div><h2>עדכונים</h2><p>מה השתנה לאחרונה במעבדה.</p></div></div>
+        <ol class="log" id="log"></ol>
+      </section>
+
+      <section class="block" id="contact">
+        <div class="contact">
+          <div>
+            <div class="head" style="margin-bottom:12px"><div><h2>צור קשר</h2></div></div>
+            <div class="note">
+              מצאת באג? יש לך רעיון לכלי חדש? שלח הודעה.
+              <ul>
+                <li>לא צריך שם ולא אימייל.</li>
+                <li>אין שמירת כתובות IP.</li>
+                <li>בקשות לכלים חדשים נקראות כולן.</li>
+              </ul>
+            </div>
+          </div>
+          <form id="contactForm" novalidate>
+            <label for="msgType">סוג ההודעה
+              <select id="msgType">
+                <option>דיווח על באג</option>
+                <option>בקשה לכלי חדש</option>
+                <option>סתם להגיד תודה</option>
+              </select>
+            </label>
+            <label for="msgTool">איזו תוכנה?
+              <select id="msgTool"><option>לא קשור לתוכנה מסוימת</option></select>
+            </label>
+            <label for="msgBody">ההודעה
+              <textarea id="msgBody" placeholder="מה קרה? מה ציפית שיקרה?"></textarea>
+            </label>
+            <button class="btn primary" type="submit">שליחה אנונימית</button>
+            <p class="form-status" id="formStatus" role="status"></p>
+          </form>
+        </div>
+      </section>
+    </main>
+
+    <section class="detail" id="detail" hidden></section>
+
+    <footer>
+      <span>© Cipher Labs · נבנה בצללים</span>
+      <span>לחץ <kbd>~</kbd> בשביל הפתעה</span>
+    </footer>
+  </div>
+</div>
+
+<div class="term-shade" id="termShade" hidden>
+  <div class="term" role="dialog" aria-modal="true" aria-label="טרמינל">
+    <div class="term-out" id="termOut"></div>
+    <div class="term-in">
+      <span>cipher@labs:~$</span>
+      <input id="termIn" autocomplete="off" spellcheck="false" aria-label="פקודה">
+    </div>
+  </div>
+</div>
+
+<script>
+(() => {
+  const REPO = "https://github.com/3354yv-art/-";
+  const reduce = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+
+  const ICONS = {
+    recover: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M3 12a9 9 0 1 0 3-6.7"/><path d="M3 4v5h5"/><path d="M12 8v4l3 2"/></svg>',
+    cloud: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M7 18a4.5 4.5 0 1 1 .9-8.9A6 6 0 0 1 19.5 11 3.5 3.5 0 0 1 18 18Z"/><path d="M12 12v5m-2-2 2 2 2-2"/></svg>'
+  };
+
+  const CATS = { all: "הכל", recovery: "שחזור", servers: "שרתים" };
+
+  const TOOLS = [
+    {
+      id: "filerecovery",
+      name: "FileRecovery",
+      he: "שחזור קבצים שנמחקו",
+      cat: "recovery",
+      icon: "recover",
+      tag: ["new", "חדש"],
+      desc: "מחקת תמונה, מסמך או סרטון? התוכנה מוצאת אותם בסל המחזור ובשטח הפנוי של הדיסק, ומחזירה אותם.",
+      long: "תוכנה בעברית מלאה ל-Windows עם שני מצבים: שחזור מהיר מסל המחזור, וסריקה עמוקה שעוברת על השטח הפנוי של הכונן ומזהה קבצים לפי החתימה שלהם, גם אחרי שרוקנת את הסל.",
+      version: "1.0",
+      os: "Windows 10/11",
+      size: "32 KB",
+      date: "2026-09-24",
+      download: REPO + "/raw/main/FileRecovery.zip",
+      source: REPO + "/tree/main/FileRecovery",
+      steps: [
+        "מורידים את קובץ ה-ZIP.",
+        "לחיצה ימנית על הקובץ ואז \"חלץ הכל\".",
+        "לחיצה כפולה על Start.bat, ומאשרים את חלון ההרשאות.",
+        "אם מופיע \"Windows protected your PC\": לוחצים \"מידע נוסף\" ואז \"הפעל בכל זאת\"."
+      ],
+      feats: [
+        "שחזור מסל המחזור למקום המקורי או לתיקייה אחרת",
+        "סריקה עמוקה של שטח פנוי ב-NTFS (דורש הרשאות מנהל)",
+        "זיהוי קבצים לפי חתימה, גם בלי שם הקובץ",
+        "ממשק בעברית מלאה, מימין לשמאל",
+        "קוד מקור פתוח לגמרי"
+      ],
+      types: ["jpg", "png", "gif", "pdf", "docx", "xlsx", "pptx", "mp4", "zip", "apk", "jar", "iso"],
+      note: "טיפ: ככל שמתחילים לשחזר מהר יותר אחרי המחיקה, כך יש סיכוי גבוה יותר שהקובץ עוד שלם. שמרו את הקבצים המשוחזרים בכונן אחר.",
+      screen: "win"
+    },
+    {
+      id: "ampere",
+      name: "Ampere Launcher",
+      he: "שרת ענן חינמי אוטומטית",
+      cat: "servers",
+      icon: "cloud",
+      tag: ["soon", "בקרוב"],
+      desc: "סקריפט שתופס לך שרת ARM חינמי לתמיד ב-Oracle Cloud. מנסה שוב ושוב עד שמתפנה מקום.",
+      long: "Oracle Cloud נותנת שרת ARM חזק בחינם לתמיד, אבל רוב הזמן מקבלים \"Out of capacity\". הסקריפט מנסה ליצור את השרת כל 2 דקות, מחליף בין גודל מלא לגודל קטן, מזהה חסימות ומחכה בהתאם, ובסוף מדפיס לך את ה-IP ואת פקודת ההתחברות.",
+      version: "0.9",
+      os: "Linux / Cloud Shell",
+      size: "6 KB",
+      date: "2026-09-27",
+      download: null,
+      source: null,
+      steps: [
+        "פותחים חשבון חינמי ב-Oracle Cloud.",
+        "יוצרים API Key ומגדירים את OCI CLI (או משתמשים ב-Cloud Shell).",
+        "מריצים את הסקריפט ומשאירים אותו לעבוד.",
+        "כשהשרת מוכן, מתחברים עם ssh לפי מה שהסקריפט מדפיס."
+      ],
+      feats: [
+        "מנסה אוטומטית כל 2 דקות, גם לילה שלם",
+        "מתחלף בין 2 ליבות / 12GB לבין ליבה אחת / 6GB",
+        "יוצר רשת ו-IP ציבורי אם חסר",
+        "לא יוצר שרת כפול אם כבר יש לך אחד",
+        "מתאים גם להרצה ב-GitHub Actions"
+      ],
+      types: ["Ubuntu 24.04", "Ubuntu 22.04", "ARM64"],
+      note: "הגרסה הציבורית בהכנה: היא תזהה לבד את פרטי החשבון והאזור של כל משתמש.",
+      screen: "log"
+    }
+  ];
+
+  const UPDATES = [
+    ["2026-09-27", "Ampere Launcher 0.9", "החלפה בין גודל מלא לגודל קטן בכל ניסיון, כדי לתפוס שרת מהר יותר."],
+    ["2026-09-26", "Ampere Launcher 0.8", "נוסף גיבוי לשרת של ליבה אחת כשאין מקום לשתיים, ותוקנה חסימת TooManyRequests."],
+    ["2026-09-25", "Ampere Launcher 0.5", "הרצה אוטומטית כל שעה ב-GitHub Actions, עם התראה כשהשרת מוכן."],
+    ["2026-09-24", "FileRecovery 1.0", "גרסה ראשונה: שחזור מסל המחזור וסריקה עמוקה, בעברית מלאה."]
+  ];
+
+  const $ = (s) => document.querySelector(s);
+  const esc = (s) => String(s).replace(/[&<>"]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]));
+
+  /* ---------- catalog ---------- */
+  let filter = "all";
+  function renderChips() {
+    $("#chips").innerHTML = Object.entries(CATS).map(([k, v]) =>
+      `<button type="button" class="chip" data-cat="${k}" aria-pressed="${k === filter}">${v}</button>`).join("");
+  }
+  function renderGrid() {
+    const list = TOOLS.filter((t) => filter === "all" || t.cat === filter);
+    $("#grid").innerHTML = list.map((t) => `
+      <a class="card" href="#${t.id}">
+        <div class="card-top">
+          <div class="icon">${ICONS[t.icon]}</div>
+          <span class="tag ${t.tag[0]}">${t.tag[1]}</span>
+        </div>
+        <h3>${esc(t.name)}</h3>
+        <p class="he">${esc(t.he)}</p>
+        <p class="desc">${esc(t.desc)}</p>
+        <div class="meta"><span>v${t.version}</span><span>${esc(t.os)}</span><span>${t.size}</span></div>
+        <span class="more">פרטים והורדה ←</span>
+      </a>`).join("");
+  }
+  $("#chips").addEventListener("click", (e) => {
+    const b = e.target.closest(".chip");
+    if (!b) return;
+    filter = b.dataset.cat;
+    renderChips(); renderGrid();
+  });
+
+  // Tilt + glow that follows the pointer.
+  $("#grid").addEventListener("pointermove", (e) => {
+    const c = e.target.closest(".card");
+    if (!c || reduce) return;
+    const r = c.getBoundingClientRect();
+    const x = (e.clientX - r.left) / r.width, y = (e.clientY - r.top) / r.height;
+    c.style.setProperty("--mx", x * 100 + "%");
+    c.style.setProperty("--my", y * 100 + "%");
+    c.style.setProperty("--ry", (x - 0.5) * 8 + "deg");
+    c.style.setProperty("--rx", (0.5 - y) * 8 + "deg");
+  });
+  $("#grid").addEventListener("pointerout", (e) => {
+    const c = e.target.closest(".card");
+    if (c && !c.contains(e.relatedTarget)) { c.style.setProperty("--rx", "0deg"); c.style.setProperty("--ry", "0deg"); }
+  });
+
+  $("#log").innerHTML = UPDATES.map(([d, t, s]) =>
+    `<li><time datetime="${d}">${d}</time><b>${esc(t)}</b><span>${esc(s)}</span></li>`).join("");
+
+  $("#msgTool").insertAdjacentHTML("beforeend", TOOLS.map((t) => `<option>${esc(t.name)}</option>`).join(""));
+  $("#contactForm").addEventListener("submit", (e) => {
+    e.preventDefault();
+    const body = $("#msgBody");
+    if (!body.value.trim()) { $("#formStatus").style.color = "var(--warn)"; $("#formStatus").textContent = "כתוב משהו בהודעה לפני השליחה."; body.focus(); return; }
+    $("#formStatus").style.color = "";
+    $("#formStatus").textContent = "הטופס עוד לא מחובר לשירות שליחה. בינתיים אפשר לדווח דרך GitHub.";
+  });
+
+  /* ---------- tool detail ---------- */
+  function screenFor(t) {
+    if (t.screen === "win") {
+      return `<div class="screen" aria-hidden="true">
+        <div class="screen-bar"><i></i><i></i><i></i><span>שחזור קבצים</span></div>
+        <div class="screen-body">
+          <div class="win-tabs"><span>סל המחזור</span><span class="on">סריקה עמוקה</span></div>
+          <table class="files"><thead><tr><th>קובץ</th><th>גודל</th><th>מצב</th></tr></thead><tbody>
+            <tr><td class="n">IMG_2041.jpg</td><td>3.2 MB</td><td class="q">תקין</td></tr>
+            <tr><td class="n">עבודה_בהיסטוריה.docx</td><td>184 KB</td><td class="q">תקין</td></tr>
+            <tr><td class="n">VID_0913.mp4</td><td>48.7 MB</td><td class="q">תקין</td></tr>
+            <tr><td class="n">scan_0007.pdf</td><td>912 KB</td><td class="q">תקין</td></tr>
+          </tbody></table>
+        </div></div>`;
+    }
+    return `<div class="screen" aria-hidden="true">
+      <div class="screen-bar"><i></i><i></i><i></i><span>ampere.sh</span></div>
+      <div class="screen-body"><pre><span class="ok">[+]</span> Image: Ubuntu 24.04
+<span class="ok">[+]</span> Subnet found
+<span class="hi">[*]</span> attempt #1   02:14:07
+<span class="bad">[-]</span> out of capacity (2 OCPU)
+<span class="hi">[*]</span> attempt #2   02:16:09
+<span class="bad">[-]</span> out of capacity (1 OCPU)
+<span class="hi">[*]</span> attempt #3   02:18:10
+<span class="ok">[+]</span> success! server created (2 OCPU, 12GB)
+<span class="ok">[+]</span> ssh -i oci_ampere.key ubuntu@&lt;IP&gt;</pre></div></div>`;
+  }
+  function renderDetail(t) {
+    const dl = t.download
+      ? `<a class="btn primary" href="${t.download}" target="_blank" rel="noopener">⬇ הורדה (${t.size})</a>`
+      : `<span class="btn primary" aria-disabled="true">⬇ בקרוב</span>`;
+    const src = t.source ? `<a class="btn" href="${t.source}" target="_blank" rel="noopener">קוד מקור</a>` : "";
+    $("#detail").innerHTML = `
+      <a class="back" href="#tools">→ חזרה לכל התוכנות</a>
+      <div class="detail-hero">
+        <div>
+          <span class="tag ${t.tag[0]}">${t.tag[1]}</span>
+          <h1>${esc(t.name)}</h1>
+          <p class="he">${esc(t.he)}</p>
+          <p class="long">${esc(t.long)}</p>
+          <dl class="specs">
+            <div><dt>גרסה</dt><dd>${t.version}</dd></div>
+            <div><dt>מערכת</dt><dd>${esc(t.os)}</dd></div>
+            <div><dt>גודל</dt><dd>${t.size}</dd></div>
+            <div><dt>עודכן</dt><dd>${t.date}</dd></div>
+          </dl>
+          <div class="cta">${dl}${src}</div>
+        </div>
+        ${screenFor(t)}
+      </div>
+      <div class="cols">
+        <div>
+          <h3>איך מתחילים</h3>
+          <ol class="steps">${t.steps.map((s) => `<li>${esc(s)}</li>`).join("")}</ol>
+          <div class="callout">${esc(t.note)}</div>
+        </div>
+        <div>
+          <h3>מה יש בפנים</h3>
+          <ul class="feats">${t.feats.map((s) => `<li>${esc(s)}</li>`).join("")}</ul>
+          <div class="types">${t.types.map((s) => `<span>${esc(s)}</span>`).join("")}</div>
+        </div>
+      </div>`;
+  }
+  function route() {
+    const id = location.hash.slice(1);
+    const t = TOOLS.find((x) => x.id === id);
+    $("#home").hidden = !!t;
+    $("#detail").hidden = !t;
+    if (t) { renderDetail(t); window.scrollTo(0, 0); }
+    else if (id) { const el = document.getElementById(id); if (el) el.scrollIntoView(); }
+  }
+  window.addEventListener("hashchange", route);
+
+  /* ---------- title decode effect ---------- */
+  function decode() {
+    if (reduce) return;
+    const spans = [["CIPHER", $("#title .dim")], [" LABS", $("#title").lastChild]];
+    const glyphs = "!<>-_\\/[]{}=+*^?#01";
+    let frame = 0;
+    const tick = () => {
+      frame++;
+      spans.forEach(([word, node], wi) => {
+        const out = [...word].map((ch, i) => {
+          if (ch === " ") return ch;
+          return frame > (i + wi * 6) * 3 + 8 ? ch : glyphs[(Math.random() * glyphs.length) | 0];
+        }).join("");
+        node.textContent = out;
+      });
+      if (frame < 70) requestAnimationFrame(tick);
+    };
+    tick();
+  }
+
+  /* ---------- starfield ---------- */
+  function sky() {
+    const cv = $("#sky"), ctx = cv.getContext("2d");
+    let w, h, dpr, stars = [], mx = -1e4, my = -1e4, px = 0, py = 0;
+    function resize() {
+      dpr = Math.min(window.devicePixelRatio || 1, 2);
+      w = cv.width = innerWidth * dpr; h = cv.height = innerHeight * dpr;
+      const n = Math.round(Math.min(160, (innerWidth * innerHeight) / 9000));
+      stars = Array.from({ length: n }, () => ({
+        x: Math.random() * w, y: Math.random() * h,
+        z: Math.random() * 0.8 + 0.2,
+        vx: (Math.random() - 0.5) * 0.15 * dpr, vy: (Math.random() - 0.5) * 0.15 * dpr
+      }));
+    }
+    addEventListener("resize", resize);
+    addEventListener("pointermove", (e) => { mx = e.clientX * dpr; my = e.clientY * dpr; });
+    resize();
+    function draw() {
+      ctx.clearRect(0, 0, w, h);
+      px += ((mx > 0 ? mx / w - 0.5 : 0) * 30 * dpr - px) * 0.05;
+      py += ((my > 0 ? my / h - 0.5 : 0) * 30 * dpr - py) * 0.05;
+      const pts = stars.map((s) => {
+        if (!reduce) { s.x = (s.x + s.vx + w) % w; s.y = (s.y + s.vy + h) % h; }
+        return [s.x - px * s.z, s.y - py * s.z, s.z];
+      });
+      const R = 150 * dpr;
+      for (const [x, y, z] of pts) {
+        const d = Math.hypot(x - mx, y - my);
+        if (d < R) {
+          ctx.strokeStyle = `rgba(180,108,255,${(1 - d / R) * 0.5})`;
+          ctx.lineWidth = dpr;
+          ctx.beginPath(); ctx.moveTo(x, y); ctx.lineTo(mx, my); ctx.stroke();
+        }
+        ctx.fillStyle = `rgba(236,230,247,${0.25 + z * 0.6})`;
+        ctx.beginPath(); ctx.arc(x, y, z * 1.6 * dpr, 0, Math.PI * 2); ctx.fill();
+      }
+      if (!reduce) requestAnimationFrame(draw);
+    }
+    draw();
+  }
+
+  /* ---------- terminal ---------- */
+  const shade = $("#termShade"), out = $("#termOut"), inp = $("#termIn");
+  const hist = []; let hi = 0;
+  function print(html) { out.insertAdjacentHTML("beforeend", html + "\n"); out.scrollTop = out.scrollHeight; }
+  const CMDS = {
+    help: () => `<span class="ok">available commands:</span>
+  about            what is this place
+  tools            list all tools
+  open &lt;tool&gt;      show a tool page
+  download &lt;tool&gt;  download a tool
+  whoami           who runs cipher labs
+  clear            clear the screen
+  exit             close the terminal`,
+    about: () => "Cipher Labs: free tools, no ads, no tracking.\nbuilt in the shadows.",
+    tools: () => TOOLS.map((t) => `  ${t.id.padEnd(14)} v${t.version.padEnd(5)} ${t.download ? '<span class="ok">available</span>' : '<span class="err">coming soon</span>'}`).join("\n"),
+    whoami: () => '<span class="err">access denied.</span> identity is classified.',
+    sudo: () => '<span class="err">nice try.</span> this incident will be reported.',
+    ls: () => TOOLS.map((t) => t.id).join("   "),
+    hack: () => "hacking the mainframe... 0%...\njust kidding. go download something useful.",
+    clear: () => { out.innerHTML = ""; return null; },
+    exit: () => { closeTerm(); return null; },
+    open: (a) => {
+      const t = TOOLS.find((x) => x.id === a);
+      if (!t) return `<span class="err">no such tool: ${esc(a || "")}</span> (try: tools)`;
+      closeTerm(); location.hash = t.id; return null;
+    },
+    download: (a) => {
+      const t = TOOLS.find((x) => x.id === a);
+      if (!t) return `<span class="err">no such tool: ${esc(a || "")}</span> (try: tools)`;
+      if (!t.download) return `<span class="err">${t.id} is not released yet.</span>`;
+      return `ready: <a href="${t.download}" target="_blank" rel="noopener">${t.name}.zip</a> (${t.size})`;
+    }
+  };
+  function run(line) {
+    print(`<span class="p">cipher@labs:~$</span> ${esc(line)}`);
+    const [cmd, ...args] = line.trim().split(/\s+/);
+    if (!cmd) return;
+    const fn = CMDS[cmd.toLowerCase()];
+    const res = fn ? fn(args.join(" ").toLowerCase()) : `<span class="err">command not found: ${esc(cmd)}</span> (try: help)`;
+    if (res != null) print(res);
+  }
+  let greeted = false;
+  function openTerm() {
+    shade.hidden = false;
+    if (!greeted) { print('<span class="ok">CIPHER LABS secure shell v1.0</span>\ntype <span class="p">help</span> to begin.'); greeted = true; }
+    inp.focus();
+  }
+  function closeTerm() { shade.hidden = true; }
+  $("#openTerm").addEventListener("click", openTerm);
+  $("#heroTerm").addEventListener("click", openTerm);
+  shade.addEventListener("click", (e) => { if (e.target === shade) closeTerm(); });
+  inp.addEventListener("keydown", (e) => {
+    if (e.key === "Enter") { const v = inp.value; if (v.trim()) { hist.push(v); hi = hist.length; } inp.value = ""; run(v); }
+    else if (e.key === "ArrowUp" && hi > 0) { inp.value = hist[--hi]; e.preventDefault(); }
+    else if (e.key === "ArrowDown") { hi = Math.min(hist.length, hi + 1); inp.value = hist[hi] || ""; }
+    else if (e.key === "Escape") closeTerm();
+  });
+  document.addEventListener("keydown", (e) => {
+    const typing = /INPUT|TEXTAREA|SELECT/.test(document.activeElement.tagName);
+    if ((e.key === "~" || e.key === "`") && !typing) { e.preventDefault(); shade.hidden ? openTerm() : closeTerm(); }
+    else if (e.key === "Escape" && !shade.hidden) closeTerm();
+  });
+
+  $("#toolCount").textContent = TOOLS.length;
+  renderChips(); renderGrid(); route(); decode(); sky();
+})();
+</script>
+</body>
+</html>
