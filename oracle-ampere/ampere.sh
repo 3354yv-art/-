@@ -1,5 +1,7 @@
 #!/bin/bash
 # Retries creating an OCI Ampere A1 instance (2 OCPU / 12GB, falling back to 1 OCPU / 6GB) about every 2 minutes.
+# The server gets a 200GB disk (the Always Free maximum) and, if cloud-init.sh sits next to this script,
+# runs it on first boot (installs the maze-pages website on port 80).
 # Optional env: SSH_PUBLIC_KEY (use this key instead of generating one), MAX_SECONDS (stop after this long).
 
 COMPARTMENT_ID="ocid1.tenancy.oc1..aaaaaaaa4kvrhyup67paovpq2tulihj6miktcnlzxgtuy2faqkht7olgursq"
@@ -11,6 +13,10 @@ MEMORY_GB=12
 FALLBACK_OCPUS=1
 FALLBACK_MEMORY_GB=6
 SLEEP=120
+BOOT_GB=200
+USER_DATA="$(dirname "$0")/cloud-init.sh"
+EXTRA_ARGS=()
+[ -f "$USER_DATA" ] && EXTRA_ARGS=(--user-data-file "$USER_DATA")
 MAX_SECONDS="${MAX_SECONDS:-0}"
 
 if [ -n "${SSH_PUBLIC_KEY:-}" ]; then
@@ -99,6 +105,7 @@ while true; do
         --shape "$SHAPE" --shape-config "{\"ocpus\":$C_OCPUS,\"memoryInGBs\":$C_MEM}" \
         --image-id "$IMAGE_ID" --subnet-id "$SUBNET_ID" --assign-public-ip true \
         --display-name "$NAME" --ssh-authorized-keys-file "$PUB_KEY_FILE" \
+        --boot-volume-size-in-gbs "$BOOT_GB" "${EXTRA_ARGS[@]}" \
         --query 'data.id' --raw-output 2>&1)
     if [[ "$OUT" == ocid1.instance* ]]; then
         echo "[+] הצלחה! השרת נוצר ($C_OCPUS ליבות, ${C_MEM}GB)"
