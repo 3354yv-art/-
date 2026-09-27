@@ -349,6 +349,8 @@
 <script>
 (() => {
   const REPO = "https://github.com/3354yv-art/-";
+  // Paste a Formspree endpoint here (https://formspree.io/f/xxxxxxx) to receive messages by email.
+  const FORM_ENDPOINT = "";
   const reduce = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
 
   const ICONS = {
@@ -372,7 +374,7 @@
       os: "Windows 10/11",
       size: "32 KB",
       date: "2026-09-24",
-      download: REPO + "/raw/main/FileRecovery.zip",
+      download: "downloads/FileRecovery.zip",
       source: REPO + "/tree/main/FileRecovery",
       steps: [
         "מורידים את קובץ ה-ZIP.",
@@ -397,22 +399,23 @@
       he: "שרת ענן חינמי אוטומטית",
       cat: "servers",
       icon: "cloud",
-      tag: ["soon", "בקרוב"],
+      tag: ["new", "חדש"],
       desc: "סקריפט שתופס לך שרת ARM חינמי לתמיד ב-Oracle Cloud. מנסה שוב ושוב עד שמתפנה מקום.",
       long: "Oracle Cloud נותנת שרת ARM חזק בחינם לתמיד, אבל רוב הזמן מקבלים \"Out of capacity\". הסקריפט מנסה ליצור את השרת כל 2 דקות, מחליף בין גודל מלא לגודל קטן, מזהה חסימות ומחכה בהתאם, ובסוף מדפיס לך את ה-IP ואת פקודת ההתחברות.",
-      version: "0.9",
+      version: "1.0",
       os: "Linux / Cloud Shell",
-      size: "6 KB",
+      size: "4 KB",
       date: "2026-09-27",
-      download: null,
-      source: null,
+      download: "downloads/AmpereLauncher.zip",
+      source: REPO + "/tree/main/tools/ampere-launcher",
       steps: [
-        "פותחים חשבון חינמי ב-Oracle Cloud.",
-        "יוצרים API Key ומגדירים את OCI CLI (או משתמשים ב-Cloud Shell).",
-        "מריצים את הסקריפט ומשאירים אותו לעבוד.",
-        "כשהשרת מוכן, מתחברים עם ssh לפי מה שהסקריפט מדפיס."
+        "פותחים חשבון חינמי ב-Oracle Cloud ונכנסים לקונסולה.",
+        "פותחים את Cloud Shell (האייקון >_ למעלה) ומעלים את ampere.sh.",
+        "מריצים bash ampere.sh ומשאירים את החלון פתוח.",
+        "כשהשרת מוכן, מורידים את המפתח ומתחברים עם ssh לפי מה שהסקריפט מדפיס."
       ],
       feats: [
+        "מזהה לבד את החשבון והאזור, בלי להגדיר כלום",
         "מנסה אוטומטית כל 2 דקות, גם לילה שלם",
         "מתחלף בין 2 ליבות / 12GB לבין ליבה אחת / 6GB",
         "יוצר רשת ו-IP ציבורי אם חסר",
@@ -420,13 +423,13 @@
         "מתאים גם להרצה ב-GitHub Actions"
       ],
       types: ["Ubuntu 24.04", "Ubuntu 22.04", "ARM64"],
-      note: "הגרסה הציבורית בהכנה: היא תזהה לבד את פרטי החשבון והאזור של כל משתמש.",
+      note: "השרת החינמי של אורקל מוגבל לשרת Ampere אחד לחשבון (עד 4 ליבות ו-24GB). אם כבר יש לך אחד, הסקריפט יעצור ויגיד לך.",
       screen: "log"
     }
   ];
 
   const UPDATES = [
-    ["2026-09-27", "Ampere Launcher 0.9", "החלפה בין גודל מלא לגודל קטן בכל ניסיון, כדי לתפוס שרת מהר יותר."],
+    ["2026-09-27", "Ampere Launcher 1.0", "גרסה ציבורית ראשונה: מזהה לבד את החשבון והאזור, ומחליפה בין גודל מלא לקטן בכל ניסיון."],
     ["2026-09-26", "Ampere Launcher 0.8", "נוסף גיבוי לשרת של ליבה אחת כשאין מקום לשתיים, ותוקנה חסימת TooManyRequests."],
     ["2026-09-25", "Ampere Launcher 0.5", "הרצה אוטומטית כל שעה ב-GitHub Actions, עם התראה כשהשרת מוכן."],
     ["2026-09-24", "FileRecovery 1.0", "גרסה ראשונה: שחזור מסל המחזור וסריקה עמוקה, בעברית מלאה."]
@@ -483,12 +486,30 @@
     `<li><time datetime="${d}">${d}</time><b>${esc(t)}</b><span>${esc(s)}</span></li>`).join("");
 
   $("#msgTool").insertAdjacentHTML("beforeend", TOOLS.map((t) => `<option>${esc(t.name)}</option>`).join(""));
-  $("#contactForm").addEventListener("submit", (e) => {
+  $("#contactForm").addEventListener("submit", async (e) => {
     e.preventDefault();
-    const body = $("#msgBody");
-    if (!body.value.trim()) { $("#formStatus").style.color = "var(--warn)"; $("#formStatus").textContent = "כתוב משהו בהודעה לפני השליחה."; body.focus(); return; }
-    $("#formStatus").style.color = "";
-    $("#formStatus").textContent = "הטופס עוד לא מחובר לשירות שליחה. בינתיים אפשר לדווח דרך GitHub.";
+    const body = $("#msgBody"), status = $("#formStatus"), btn = e.target.querySelector("button");
+    const say = (text, warn) => { status.style.color = warn ? "var(--warn)" : ""; status.innerHTML = text; };
+    if (!body.value.trim()) { say("כתוב משהו בהודעה לפני השליחה.", true); body.focus(); return; }
+    const type = $("#msgType").value, tool = $("#msgTool").value;
+    if (!FORM_ENDPOINT) {
+      // No mail service connected yet: hand the message to GitHub Issues instead.
+      const url = `${REPO}/issues/new?title=${encodeURIComponent(type + " – " + tool)}&body=${encodeURIComponent(body.value)}`;
+      say(`ההודעה מוכנה. <a href="${url}" target="_blank" rel="noopener">לחץ כאן כדי לשלוח אותה דרך GitHub</a>.`);
+      return;
+    }
+    btn.disabled = true; say("שולח...");
+    try {
+      const r = await fetch(FORM_ENDPOINT, {
+        method: "POST",
+        headers: { "Content-Type": "application/json", "Accept": "application/json" },
+        body: JSON.stringify({ type, tool, message: body.value })
+      });
+      if (!r.ok) throw new Error(r.status);
+      e.target.reset(); say("נשלח! תודה 🙏");
+    } catch {
+      say("השליחה נכשלה. בדוק את החיבור לאינטרנט ונסה שוב.", true);
+    } finally { btn.disabled = false; }
   });
 
   /* ---------- tool detail ---------- */
@@ -655,7 +676,7 @@
       const t = TOOLS.find((x) => x.id === a);
       if (!t) return `<span class="err">no such tool: ${esc(a || "")}</span> (try: tools)`;
       if (!t.download) return `<span class="err">${t.id} is not released yet.</span>`;
-      return `ready: <a href="${t.download}" target="_blank" rel="noopener">${t.name}.zip</a> (${t.size})`;
+      return `ready: <a href="${t.download}" target="_blank" rel="noopener">${t.download.split("/").pop()}</a> (${t.size})`;
     }
   };
   function run(line) {
