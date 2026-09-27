@@ -87,33 +87,34 @@ while true; do
         --query 'data[?"lifecycle-state"!=`"TERMINATED"` && "lifecycle-state"!=`"TERMINATING"`] | [0].id' --raw-output 2>/dev/null)
     [ -n "$EXISTING" ] && { echo "[+] השרת כבר קיים"; show_result "$EXISTING"; }
     WAIT=$SLEEP
-    # Smaller shapes fit into fragmented hosts more often; the instance can be resized later.
-    for CFG in "$OCPUS $MEMORY_GB" "$FALLBACK_OCPUS $FALLBACK_MEMORY_GB"; do
-        set -- $CFG
-        # --no-retry: the CLI otherwise re-sends up to 7 launches per attempt, which triggers TooManyRequests.
-        OUT=$(oci --no-retry compute instance launch -c "$COMPARTMENT_ID" --availability-domain "$AD" \
-            --shape "$SHAPE" --shape-config "{\"ocpus\":$1,\"memoryInGBs\":$2}" \
-            --image-id "$IMAGE_ID" --subnet-id "$SUBNET_ID" --assign-public-ip true \
-            --display-name "$NAME" --ssh-authorized-keys-file "$PUB_KEY_FILE" \
-            --query 'data.id' --raw-output 2>&1)
-        if [[ "$OUT" == ocid1.instance* ]]; then
-            echo "[+] הצלחה! השרת נוצר ($1 ליבות, ${2}GB)"
-            [ -n "${GITHUB_OUTPUT:-}" ] && echo "created=true" >> "$GITHUB_OUTPUT"
-            show_result "$OUT"
-        elif echo "$OUT" | grep -qi "capacity"; then
-            echo "[-] אין מקום פנוי לשרת של $1 ליבות"
-        elif echo "$OUT" | grep -qi "TooManyRequests"; then
-            echo "[-] יותר מדי בקשות, ממתין יותר זמן"
-            WAIT=$((SLEEP * 2))
-            break
-        elif echo "$OUT" | grep -qi "LimitExceeded"; then
-            echo "[!] עברת את מכסת ה-Free Tier (כנראה כבר יש לך שרת Ampere). עוצר."
-            exit 1
-        else
-            echo "[!] שגיאה: $OUT"
-            break
-        fi
-    done
+    # Alternate full and smaller shape across attempts: smaller shapes fit busy hosts more often
+    # (resizable later), and Oracle throttles a second launch sent right after the first.
+    if [ $((attempt % 2)) -eq 1 ]; then
+        C_OCPUS=$OCPUS; C_MEM=$MEMORY_GB
+    else
+        C_OCPUS=$FALLBACK_OCPUS; C_MEM=$FALLBACK_MEMORY_GB
+    fi
+    # --no-retry: the CLI otherwise re-sends up to 7 launches per attempt, which triggers TooManyRequests.
+    OUT=$(oci --no-retry compute instance launch -c "$COMPARTMENT_ID" --availability-domain "$AD" \
+        --shape "$SHAPE" --shape-config "{\"ocpus\":$C_OCPUS,\"memoryInGBs\":$C_MEM}" \
+        --image-id "$IMAGE_ID" --subnet-id "$SUBNET_ID" --assign-public-ip true \
+        --display-name "$NAME" --ssh-authorized-keys-file "$PUB_KEY_FILE" \
+        --query 'data.id' --raw-output 2>&1)
+    if [[ "$OUT" == ocid1.instance* ]]; then
+        echo "[+] הצלחה! השרת נוצר ($C_OCPUS ליבות, ${C_MEM}GB)"
+        [ -n "${GITHUB_OUTPUT:-}" ] && echo "created=true" >> "$GITHUB_OUTPUT"
+        show_result "$OUT"
+    elif echo "$OUT" | grep -qi "capacity"; then
+        echo "[-] אין מקום פנוי לשרת של $C_OCPUS ליבות"
+    elif echo "$OUT" | grep -qi "TooManyRequests"; then
+        echo "[-] יותר מדי בקשות, ממתין יותר זמן"
+        WAIT=$((SLEEP * 2))
+    elif echo "$OUT" | grep -qi "LimitExceeded"; then
+        echo "[!] עברת את מכסת ה-Free Tier (כנראה כבר יש לך שרת Ampere). עוצר."
+        exit 1
+    else
+        echo "[!] שגיאה: $OUT"
+    fi
     if [ "$MAX_SECONDS" -gt 0 ] && [ "$SECONDS" -ge "$MAX_SECONDS" ]; then
         echo "[*] נגמר זמן הריצה הזה, הריצה הבאה תמשיך"
         exit 0
