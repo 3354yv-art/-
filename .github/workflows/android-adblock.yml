@@ -1,0 +1,45 @@
+name: Build Android AdBlock APK
+
+on:
+  push:
+    paths:
+      - "android-adblock/**"
+      - ".github/workflows/android-adblock.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: android-adblock
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "17"
+
+      - name: Build APK
+        run: ./gradlew --no-daemon assembleRelease
+
+      - name: Name the APK
+        run: cp app/build/outputs/apk/release/app-release.apk AdBlock.apk
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: AdBlock-apk
+          path: android-adblock/AdBlock.apk
+
+      - name: Publish to the "adblock-android" release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh release view adblock-android >/dev/null 2>&1 || \
+            gh release create adblock-android --title "AdBlock for Android" \
+              --notes "Latest APK build of android-adblock/. Download AdBlock.apk and install it."
+          gh release upload adblock-android AdBlock.apk --clobber
