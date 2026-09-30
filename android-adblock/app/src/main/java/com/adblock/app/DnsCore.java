@@ -38,7 +38,8 @@ final class DnsCore {
 
     /** חוסם את הדומיין וכל תת-דומיין שלו; הרשימה הלבנה גוברת. */
     static boolean isBlocked(String name, Set<String> blocked, Set<String> allowed) {
-        String n = name.endsWith(".") ? name.substring(0, name.length() - 1) : name;
+        String n = name.toLowerCase();
+        if (n.endsWith(".")) n = n.substring(0, n.length() - 1);
         boolean verdict = false;
         int i = 0;
         while (true) {
@@ -79,9 +80,76 @@ final class DnsCore {
     /** תשובת SERVFAIL לשאילתה. */
     static byte[] servfail(byte[] q, int off) {
         byte[] r = new byte[12];
-        r[0] = q[off]; r[1] = q[off + 1];
+        if (q.length >= off + 2) { r[0] = q[off]; r[1] = q[off + 1]; }
         r[2] = (byte) 0x81; r[3] = (byte) 0x82;
         return r;
+    }
+
+
+    /** תשובת NXDOMAIN (משמשת ל-canary של Firefox DoH ולדומיינים שצריך "להעלים"). */
+    static byte[] nxdomainReply(byte[] q, int off, Question qs) {
+        byte[] r = blockedReply(q, off, new Question(qs.name, 0, qs.end));
+        r[3] = (byte) 0x83; // RA + RCODE=3
+        return r;
+    }
+
+    /** מפענח שם DNS (כולל pointers) החל מ-pos בתוך הודעה שלמה. מחזיר null אם פגום. */
+    static String readName(byte[] m, int len, int pos) {
+        StringBuilder sb = new StringBuilder();
+        int jumps = 0;
+        try {
+            while (true) {
+                int n = m[pos] & 0xFF;
+                if (n == 0) break;
+                if ((n & 0xC0) == 0xC0) {
+                    pos = ((n & 0x3F) << 8) | (m[pos + 1] & 0xFF);
+                    if (pos >= len || ++jumps > 10) return null;
+                    continue;
+                }
+                if ((n & 0xC0) != 0 || pos + n >= len) return null;
+                if (sb.length() > 0) sb.append('.');
+                for (int k = 1; k <= n; k++) sb.append((char) (m[pos + k] & 0xFF));
+                pos += n + 1;
+            }
+        } catch (ArrayIndexOutOfBoundsException e) {
+            return null;
+        }
+        return sb.toString().toLowerCase();
+    }
+
+    /** מדלג על שם בתוך הודעה (label-ים או pointer). מחזיר אינדקס אחריו או -1. */
+    private static int skipName(byte[] m, int len, int pos) {
+        while (pos < len) {
+            int n = m[pos] & 0xFF;
+            if (n == 0) return pos + 1;
+            if ((n & 0xC0) == 0xC0) return pos + 2;
+            pos += n + 1;
+        }
+        return -1;
+    }
+
+    /**
+     * "CNAME cloaking": מעקב שמוסתר מאחורי תת-דומיין של האתר עצמו (CNAME לדומיין של חברת פרסום).
+     * בודק אם אחד מיעדי ה-CNAME בתשובה חסום. qEnd = סוף סעיף השאלה.
+     */
+    static boolean cnameBlocked(byte[] m, int len, int qEnd, Set<String> blocked, Set<String> allowed) {
+        if (len < 12) return false;
+        int an = ((m[6] & 0xFF) << 8) | (m[7] & 0xFF);
+        int pos = qEnd;
+        for (int i = 0; i < an && i < 32; i++) {
+            pos = skipName(m, len, pos);
+            if (pos < 0 || pos + 10 > len) return false;
+            int type = ((m[pos] & 0xFF) << 8) | (m[pos + 1] & 0xFF);
+            int rdlen = ((m[pos + 8] & 0xFF) << 8) | (m[pos + 9] & 0xFF);
+            pos += 10;
+            if (pos + rdlen > len) return false;
+            if (type == 5) {
+                String target = readName(m, len, pos);
+                if (target != null && isBlocked(target, blocked, allowed)) return true;
+            }
+            pos += rdlen;
+        }
+        return false;
     }
 
     // ---------------------------------------------------------------- IPv4/UDP

@@ -24,6 +24,36 @@ jobs:
           distribution: temurin
           java-version: "17"
 
+      - name: Core tests (unit)
+        run: |
+          SRC=app/src/main/java/com/adblock/app
+          mkdir -p /tmp/out
+          javac -Xlint:all -d /tmp/out $SRC/{DnsCore,DnsEngine,PacketHandler,Forwarder,ListParser}.java tests/UnitTests.java tests/Bridge.java
+          java -cp /tmp/out com.adblock.app.UnitTests
+
+      - name: Core tests (end-to-end over a real tun device)
+        continue-on-error: true
+        run: sudo python3 tests/e2e_tun.py /tmp/out
+
+      # מפתח חתימה קבוע בין בניות (נשמר ב-cache, לא בריפו), כך שהעדכון מותקן מעל הגרסה הקודמת
+      - name: Restore signing key
+        uses: actions/cache@v4
+        with:
+          path: ~/adblock-signing
+          key: adblock-signing-v1
+
+      - name: Create signing key if missing
+        run: |
+          mkdir -p ~/adblock-signing
+          if [ ! -f ~/adblock-signing/release.keystore ]; then
+            PASS=$(openssl rand -hex 16)
+            keytool -genkeypair -keystore ~/adblock-signing/release.keystore -storepass "$PASS" -keypass "$PASS" \
+              -alias adblock -keyalg RSA -keysize 2048 -validity 36500 -dname "CN=AdBlock"
+            printf 'storeFile=%s\nstorePassword=%s\nkeyAlias=adblock\nkeyPassword=%s\n' \
+              "$HOME/adblock-signing/release.keystore" "$PASS" "$PASS" > ~/adblock-signing/keystore.properties
+          fi
+          cp ~/adblock-signing/keystore.properties keystore.properties
+
       - name: Build APK
         run: ./gradlew --no-daemon assembleRelease
 

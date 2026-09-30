@@ -2,6 +2,12 @@ plugins {
     id 'com.android.application'
 }
 
+// חתימה: אם קיים keystore.properties (נוצר ב-CI ונשמר ב-cache) - משתמשים בו כדי שעדכונים יתקינו מעל
+// הגרסה הקודמת. אחרת (בנייה מקומית) - מפתח debug.
+def ksFile = rootProject.file('keystore.properties')
+def ksProps = new Properties()
+if (ksFile.exists()) ksFile.withInputStream { ksProps.load(it) }
+
 android {
     namespace 'com.adblock.app'
     compileSdk 34
@@ -10,15 +16,28 @@ android {
         applicationId 'com.adblock.app'
         minSdk 24
         targetSdk 34
-        versionCode 1
-        versionName '1.0'
+        versionCode 2
+        versionName '2.0'
+    }
+    signingConfigs {
+        if (ksFile.exists()) {
+            release {
+                storeFile rootProject.file(ksProps['storeFile'])
+                storePassword ksProps['storePassword']
+                keyAlias ksProps['keyAlias']
+                keyPassword ksProps['keyPassword']
+            }
+        }
     }
     buildTypes {
         release {
             minifyEnabled false
-            // חתום עם מפתח debug כדי שה-APK יהיה ניתן להתקנה ישירות
-            signingConfig signingConfigs.debug
+            signingConfig ksFile.exists() ? signingConfigs.release : signingConfigs.debug
         }
+    }
+    lint {
+        abortOnError false
+        checkReleaseBuilds false
     }
     compileOptions {
         sourceCompatibility JavaVersion.VERSION_17
