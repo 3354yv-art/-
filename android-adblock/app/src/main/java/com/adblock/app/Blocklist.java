@@ -22,7 +22,7 @@ final class Blocklist {
             {"https://adaway.org/hosts.txt"},
             {"https://pgl.yoyo.org/adservers/serverlist.php?hostformat=hosts&showintro=0&mimetype=plaintext"},
             {"https://easylist.to/easylist/easylist.txt",
-             "https://raw.githubusercontent.com/easylist/easylist/master/easylist.txt"},
+             "https://raw.githubusercontent.com/easylist/easylist/master/easylist/easylist.txt"},
     };
 
     /** דומיינים שלעולם לא נחסמים - בדיקות חיבור/Captive portal, וכתובות העדכון של הרשימות. */
