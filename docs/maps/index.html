@@ -1,0 +1,223 @@
+<!doctype html>
+<html lang="he" dir="rtl">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#1a73e8">
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="icon" href="icon.svg">
+<title>מפות אופליין</title>
+<link rel="stylesheet" href="vendor/leaflet.css">
+<style>
+  :root { --blue:#1a73e8; --text:#202124; --muted:#5f6368; --card:#fff; --line:#dadce0; }
+  * { box-sizing: border-box; }
+  html, body { height: 100%; margin: 0; font-family: system-ui, "Heebo", Arial, sans-serif; color: var(--text); }
+  #map { position: absolute; inset: 0; z-index: 0; direction: ltr; }
+  .panel { position: absolute; z-index: 1000; background: var(--card); border-radius: 12px; box-shadow: 0 2px 10px rgba(0,0,0,.3); }
+  #top { top: 12px; right: 12px; left: 12px; max-width: 420px; padding: 6px 8px; margin-inline-start: auto; }
+  #top form { display: flex; gap: 6px; }
+  #q { flex: 1; border: 0; font: inherit; padding: 10px; outline: none; background: transparent; min-width: 0; }
+  button { font: inherit; cursor: pointer; border: 0; border-radius: 8px; padding: 8px 12px; background: var(--blue); color: #fff; }
+  button.ghost { background: #eef3fd; color: var(--blue); }
+  button.danger { background: #fce8e6; color: #c5221f; }
+  #results { list-style: none; margin: 4px 0 0; padding: 0; max-height: 40vh; overflow: auto; }
+  #results li { padding: 10px; border-top: 1px solid var(--line); cursor: pointer; font-size: 14px; }
+  #results li:hover { background: #f1f3f4; }
+  #results small { color: var(--muted); display: block; }
+  #status { position: absolute; z-index: 1000; top: 76px; right: 12px; padding: 4px 12px; font-size: 13px; border-radius: 999px; }
+  #status.on { background: #e6f4ea; color: #137333; }
+  #status.off { background: #fef7e0; color: #b06000; }
+  #bar { bottom: 18px; right: 12px; left: 12px; max-width: 420px; margin-inline-start: auto; padding: 10px; display: flex; gap: 8px; flex-wrap: wrap; }
+  #bar button { flex: 1 1 auto; }
+  #sheet { bottom: 90px; right: 12px; left: 12px; max-width: 420px; margin-inline-start: auto; padding: 14px; display: none; max-height: 50vh; overflow: auto; }
+  #sheet h3 { margin: 0 0 8px; font-size: 16px; }
+  #sheet .row { display: flex; justify-content: space-between; align-items: center; gap: 8px; padding: 6px 0; border-top: 1px solid var(--line); font-size: 14px; }
+  #sheet .row span { cursor: pointer; flex: 1; }
+  progress { width: 100%; }
+  .muted { color: var(--muted); font-size: 13px; }
+</style>
+</head>
+<body>
+<div id="map"></div>
+
+<div id="top" class="panel">
+  <form id="searchForm">
+    <input id="q" type="search" placeholder="חיפוש מקום שמור או כתובת" autocomplete="off">
+    <button>חפש</button>
+  </form>
+  <ul id="results"></ul>
+</div>
+<div id="status" class="off">בודק חיבור…</div>
+
+<div id="sheet" class="panel"></div>
+
+<div id="bar" class="panel">
+  <button id="locate" class="ghost">📍 המיקום שלי</button>
+  <button id="download">⬇ הורד אזור</button>
+  <button id="places" class="ghost">⭐ מקומות שמורים</button>
+  <button id="storage" class="ghost">💾 אחסון</button>
+</div>
+
+<script src="vendor/leaflet.js"></script>
+<script>
+// Tile source. The default is the public OpenStreetMap server, whose usage
+// policy only allows small, personal downloads - see MAX_TILES below.
+// Point TILE_URL at your own tile server for larger areas.
+const TILE_URL = 'https://tile.openstreetmap.org/{z}/{x}/{y}.png';
+const ATTRIB = '© <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>';
+const MAX_TILES = 300;       // per download
+const MAX_DL_ZOOM = 17;
+const TILE_CACHE = 'maps-tiles-v1';
+const $ = id => document.getElementById(id);
+const esc = s => String(s).replace(/[&<>"]/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
+
+if ('serviceWorker' in navigator) navigator.serviceWorker.register('sw.js').catch(() => {});
+
+// ---- map ----
+let start = [32.0853, 34.7818], startZoom = 12;
+try { const v = JSON.parse(localStorage.getItem('view')); if (v) { start = v.c; startZoom = v.z; } } catch {}
+const map = L.map('map', { zoomControl: false }).setView(start, startZoom);
+L.control.zoom({ position: 'bottomleft' }).addTo(map);
+L.tileLayer(TILE_URL, { maxZoom: 19, attribution: ATTRIB }).addTo(map);
+map.on('moveend', () => {
+  try { localStorage.setItem('view', JSON.stringify({ c: [map.getCenter().lat, map.getCenter().lng], z: map.getZoom() })); } catch {}
+});
+
+// ---- connection status ----
+function updateStatus() {
+  const s = $('status');
+  s.className = navigator.onLine ? 'on' : 'off';
+  s.textContent = navigator.onLine ? 'מחובר' : 'אופליין – מוצגות מפות שהורדו';
+}
+addEventListener('online', updateStatus); addEventListener('offline', updateStatus); updateStatus();
+
+// ---- saved places (localStorage) ----
+let places = [];
+try { places = JSON.parse(localStorage.getItem('places')) || []; } catch {}
+const markers = L.layerGroup().addTo(map);
+function savePlaces() { try { localStorage.setItem('places', JSON.stringify(places)); } catch {} }
+function drawPlaces() {
+  markers.clearLayers();
+  places.forEach((p, i) => {
+    L.marker([p.lat, p.lng]).addTo(markers)
+      .bindPopup(`<b>${esc(p.name)}</b><br><button data-del="${i}" class="danger">מחק</button>`);
+  });
+}
+drawPlaces();
+map.on('popupopen', e => {
+  const b = e.popup.getElement().querySelector('[data-del]');
+  if (b) b.onclick = () => { places.splice(+b.dataset.del, 1); savePlaces(); drawPlaces(); map.closePopup(); };
+});
+map.on('contextmenu', addPlace);               // long-press / right-click
+function addPlace(e) {
+  const name = prompt('שם המקום לשמירה:');
+  if (!name) return;
+  places.push({ name, lat: e.latlng.lat, lng: e.latlng.lng });
+  savePlaces(); drawPlaces();
+}
+
+// ---- search: saved places offline, Nominatim when online ----
+$('searchForm').addEventListener('submit', async ev => {
+  ev.preventDefault();
+  const q = $('q').value.trim(); if (!q) return;
+  const ul = $('results'); ul.innerHTML = '';
+  const add = (title, sub, lat, lng) => {
+    const li = document.createElement('li');
+    li.innerHTML = `${esc(title)}<small>${esc(sub)}</small>`;
+    li.onclick = () => { map.setView([lat, lng], Math.max(map.getZoom(), 16)); ul.innerHTML = ''; };
+    ul.appendChild(li);
+  };
+  places.filter(p => p.name.includes(q)).forEach(p => add('⭐ ' + p.name, 'מקום שמור', p.lat, p.lng));
+  if (navigator.onLine) {
+    try {
+      const r = await fetch('https://nominatim.openstreetmap.org/search?format=json&limit=5&accept-language=he&q=' + encodeURIComponent(q));
+      (await r.json()).forEach(x => add(x.display_name.split(',')[0], x.display_name, +x.lat, +x.lon));
+    } catch {}
+  }
+  if (!ul.children.length) ul.innerHTML = '<li class="muted">לא נמצאו תוצאות' + (navigator.onLine ? '' : ' (חיפוש כתובות דורש חיבור)') + '</li>';
+});
+
+// ---- locate (GPS works offline) ----
+let me;
+$('locate').onclick = () => {
+  if (!navigator.geolocation) return alert('המכשיר לא תומך במיקום');
+  navigator.geolocation.getCurrentPosition(pos => {
+    const ll = [pos.coords.latitude, pos.coords.longitude];
+    if (me) me.remove();
+    me = L.circleMarker(ll, { radius: 8, color: '#fff', weight: 3, fillColor: '#1a73e8', fillOpacity: 1 }).addTo(map);
+    map.setView(ll, Math.max(map.getZoom(), 16));
+  }, err => alert('לא ניתן לקבל מיקום: ' + err.message), { enableHighAccuracy: true, timeout: 15000 });
+};
+
+// ---- download visible area for offline use ----
+const lon2x = (lon, z) => Math.floor((lon + 180) / 360 * 2 ** z);
+const lat2y = (lat, z) => { const r = lat * Math.PI / 180; return Math.floor((1 - Math.log(Math.tan(r) + 1 / Math.cos(r)) / Math.PI) / 2 * 2 ** z); };
+function tileList(bounds, z0, z1) {
+  const out = [];
+  for (let z = z0; z <= z1; z++) {
+    const x0 = lon2x(bounds.getWest(), z), x1 = lon2x(bounds.getEast(), z);
+    const y0 = lat2y(bounds.getNorth(), z), y1 = lat2y(bounds.getSouth(), z);
+    for (let x = x0; x <= x1; x++) for (let y = y0; y <= y1; y++) out.push(TILE_URL.replace('{z}', z).replace('{x}', x).replace('{y}', y));
+  }
+  return out;
+}
+function show(html) { const s = $('sheet'); s.innerHTML = html; s.style.display = 'block'; return s; }
+function hide() { $('sheet').style.display = 'none'; }
+
+$('download').onclick = () => {
+  if (!navigator.onLine) return show('<h3>הורדת אזור</h3><p>צריך חיבור לאינטרנט כדי להוריד מפה.</p><button class="ghost" id="x">סגור</button>').querySelector('#x').onclick = hide;
+  const b = map.getBounds(), z0 = Math.floor(map.getZoom());
+  let z1 = Math.min(MAX_DL_ZOOM, z0 + 3), list = tileList(b, z0, z1);
+  while (list.length > MAX_TILES && z1 > z0) list = tileList(b, z0, --z1);
+  const s = show(`<h3>הורדת האזור המוצג</h3>
+    <p class="muted">רמות זום ${z0}–${z1} · ${list.length} אריחים</p>
+    ${list.length > MAX_TILES ? `<p>האזור גדול מדי (מעל ${MAX_TILES} אריחים). התקרבו למפה ונסו שוב.</p>` : '<progress id="p" max="1" value="0" hidden></progress>'}
+    <p class="muted">שימו לב: שרת OpenStreetMap הציבורי מיועד לשימוש אישי מצומצם בלבד.</p>
+    <div style="display:flex;gap:8px"><button id="go" ${list.length > MAX_TILES ? 'disabled' : ''}>הורד</button><button class="ghost" id="x">סגור</button></div>`);
+  s.querySelector('#x').onclick = hide;
+  s.querySelector('#go').onclick = async () => {
+    const p = s.querySelector('#p'); p.hidden = false;
+    const cache = await caches.open(TILE_CACHE);
+    let done = 0, failed = 0;
+    const queue = list.slice();
+    const worker = async () => {
+      while (queue.length) {
+        const u = queue.pop();
+        try {
+          if (!(await cache.match(u))) { const r = await fetch(u); if (r.ok) await cache.put(u, r); else failed++; }
+        } catch { failed++; }
+        p.value = ++done / list.length;
+      }
+    };
+    await Promise.all([worker(), worker(), worker(), worker()]);
+    s.querySelector('#go').disabled = true;
+    s.querySelector('p.muted').textContent = failed ? `הסתיים, ${failed} אריחים נכשלו` : 'הסתיים – האזור זמין אופליין ✓';
+  };
+};
+
+// ---- saved places list ----
+$('places').onclick = () => {
+  const s = show('<h3>מקומות שמורים</h3><div id="list"></div><p class="muted">לשמירת מקום: לחיצה ארוכה על המפה.</p><button class="ghost" id="x">סגור</button>');
+  s.querySelector('#x').onclick = hide;
+  const l = s.querySelector('#list');
+  if (!places.length) l.innerHTML = '<p class="muted">אין מקומות שמורים עדיין.</p>';
+  places.forEach(p => {
+    const r = document.createElement('div'); r.className = 'row';
+    r.innerHTML = `<span>⭐ ${esc(p.name)}</span>`;
+    r.firstChild.onclick = () => { map.setView([p.lat, p.lng], 16); hide(); };
+    l.appendChild(r);
+  });
+};
+
+// ---- storage ----
+$('storage').onclick = async () => {
+  const cache = await caches.open(TILE_CACHE);
+  const n = (await cache.keys()).length;
+  const s = show(`<h3>אחסון</h3><p>${n} אריחי מפה שמורים במכשיר.</p>
+    <div style="display:flex;gap:8px"><button class="danger" id="clr">מחק מפות שהורדו</button><button class="ghost" id="x">סגור</button></div>`);
+  s.querySelector('#x').onclick = hide;
+  s.querySelector('#clr').onclick = async () => { await caches.delete(TILE_CACHE); hide(); };
+};
+</script>
+</body>
+</html>
