@@ -31,10 +31,6 @@ jobs:
             u=$(echo "$u" | sed 's/" *+.*//')
             echo "$(curl -s -L -m 60 -o /tmp/l.txt -w '%{http_code}' "$u") $(wc -l < /tmp/l.txt) lines  $u"
           done
-          echo "hagezi lists:"
-          for n in pro ultimate tif.medium popupads native.xiaomi native.samsung native.huawei native.oppo-realme native.vivo; do
-            echo "$(curl -s -L -m 60 -o /tmp/l.txt -w '%{http_code}' https://raw.githubusercontent.com/hagezi/dns-blocklists/main/hosts/$n.txt) $(wc -l < /tmp/l.txt) lines  $n"
-          done
 
       - name: Core tests (unit)
         run: |

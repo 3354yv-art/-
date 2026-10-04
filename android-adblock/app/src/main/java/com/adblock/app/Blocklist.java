@@ -14,33 +14,15 @@ import java.util.HashSet;
 import java.util.Set;
 import java.util.TreeSet;
 
-/** ניהול רשימות: חסימה רגילה + אגרסיבית (נשמרות כקבצי hash בינאריים), ורשימה לבנה. */
+/** ניהול רשימות: רשימת פרסומות (נשמרת כקובץ hash בינארי), ורשימה לבנה. */
 final class Blocklist {
-    private static final String GZ = "https://raw.githubusercontent.com/hagezi/dns-blocklists/main/hosts/";
-    private static final String GZ_MIRROR = "https://cdn.jsdelivr.net/gh/hagezi/dns-blocklists@latest/hosts/";
-
-    private static String[] hagezi(String name) { return new String[]{GZ + name, GZ_MIRROR + name}; }
-
-    /** כל רשומה = כתובת ראשית + מראות (mirrors) אם הראשית נכשלה. */
-    static final String[][] STANDARD = {
+    /** רק רשימות פרסומות. כל רשומה = כתובת ראשית + מראות (mirrors) אם הראשית נכשלה. */
+    static final String[][] SOURCES = {
             {"https://raw.githubusercontent.com/StevenBlack/hosts/master/hosts"},
             {"https://adaway.org/hosts.txt"},
-            {"https://adguardteam.github.io/AdGuardSDNSFilter/Filters/filter.txt",
-             "https://raw.githubusercontent.com/AdguardTeam/AdGuardSDNSFilter/master/Filters/filter.txt"},
-            hagezi("pro.txt"),
-    };
-
-    /** מצב אגרסיבי: ultimate, טלמטריה של יצרני מכשירים, איומים/פישינג, CNAME מוסתר, פופאפים. */
-    static final String[][] AGGRESSIVE = {
-            hagezi("ultimate.txt"),
-            hagezi("tif.medium.txt"),
-            hagezi("popupads.txt"),
-            hagezi("native.xiaomi.txt"),
-            hagezi("native.samsung.txt"),
-            hagezi("native.huawei.txt"),
-            hagezi("native.oppo-realme.txt"),
-            hagezi("native.vivo.txt"),
-            {"https://raw.githubusercontent.com/nextdns/cname-cloaking-blocklist/master/domains"},
+            {"https://pgl.yoyo.org/adservers/serverlist.php?hostformat=hosts&showintro=0&mimetype=plaintext"},
+            {"https://easylist.to/easylist/easylist.txt",
+             "https://raw.githubusercontent.com/easylist/easylist/master/easylist.txt"},
     };
 
     /** דומיינים שלעולם לא נחסמים - בדיקות חיבור/Captive portal, וכתובות העדכון של הרשימות. */
@@ -49,7 +31,7 @@ final class Blocklist {
             "clients1.google.com", "clients4.google.com", "time.android.com", "captive.apple.com",
             "www.msftconnecttest.com", "dns.msftncsi.com", "detectportal.firefox.com",
             "raw.githubusercontent.com", "github.com", "adaway.org", "adguardteam.github.io",
-            "cdn.jsdelivr.net",
+            "easylist.to", "pgl.yoyo.org",
     };
 
     private static final long STALE_MS = 24L * 3600 * 1000;
@@ -64,22 +46,12 @@ final class Blocklist {
     static Set<String> allowed() { return allowed; }
     static int size() { return blocked.size(); }
 
-    private static File stdFile(Context c) { return new File(c.getFilesDir(), "std.bin"); }
-    private static File aggrFile(Context c) { return new File(c.getFilesDir(), "aggr.bin"); }
+    private static File adsFile(Context c) { return new File(c.getFilesDir(), "ads.bin"); }
     private static File userAllowFile(Context c) { return new File(c.getFilesDir(), "allowlist.txt"); }
 
-    static boolean aggressive(Context c) {
-        return c.getSharedPreferences(AdBlockVpnService.PREFS, Context.MODE_PRIVATE).getBoolean("aggressive", true);
-    }
-
-    static void setAggressive(Context c, boolean on) {
-        c.getSharedPreferences(AdBlockVpnService.PREFS, Context.MODE_PRIVATE).edit().putBoolean("aggressive", on).apply();
-    }
-
     static boolean isStale(Context c) {
-        File f = stdFile(c);
-        if (!f.exists() || System.currentTimeMillis() - f.lastModified() > STALE_MS) return true;
-        return aggressive(c) && !aggrFile(c).exists();
+        File f = adsFile(c);
+        return !f.exists() || System.currentTimeMillis() - f.lastModified() > STALE_MS;
     }
 
     private static long[] builtin(Context c) {
@@ -94,16 +66,13 @@ final class Blocklist {
         loadAllowed(c);
     }
 
-    /** טעינה מלאה: מובנית + רגילה + (אם אגרסיבי) האגרסיבית. טעינה בינארית - אלפיות שנייה. */
+    /** טעינה מלאה: מובנית + רשימת הפרסומות שהורדה. טעינה בינארית - אלפיות שנייה. */
     static void loadFull(Context c) {
-        new File(c.getFilesDir(), "blocklist.txt").delete(); // פורמט ישן
+        // ניקוי קבצים מגרסאות קודמות (רשימות מעקב/טלמטריה שכבר לא בשימוש)
+        for (String old : new String[]{"blocklist.txt", "std.bin", "aggr.bin"}) new File(c.getFilesDir(), old).delete();
         DomainSet s = new DomainSet(builtin(c));
-        long[] std = DomainSet.read(stdFile(c));
-        if (std != null) s = s.with(new DomainSet(std));
-        if (aggressive(c)) {
-            long[] ag = DomainSet.read(aggrFile(c));
-            if (ag != null) s = s.with(new DomainSet(ag));
-        }
+        long[] ads = DomainSet.read(adsFile(c));
+        if (ads != null) s = s.with(new DomainSet(ads));
         blocked = s;
         loadAllowed(c);
     }
@@ -162,20 +131,13 @@ final class Blocklist {
         return all.build();
     }
 
-    /** מוריד הכל. מחזיר את מספר הדומיינים הכולל, או -1 אם שום דבר לא ירד. */
+    /** מוריד את רשימות הפרסומות. מחזיר את מספר הדומיינים הכולל, או -1 אם שום דבר לא ירד. */
     static int update(Context c) {
-        long[] std = download(STANDARD);
-        long[] ag = download(AGGRESSIVE);
-        boolean ok = false;
+        long[] ads = download(SOURCES);
+        if (ads.length < 1000) return -1;
         synchronized (lock) {
-            try {
-                if (std.length >= 1000) { DomainSet.write(stdFile(c), std); ok = true; }
-                if (ag.length >= 100) { DomainSet.write(aggrFile(c), ag); ok = true; }
-            } catch (IOException e) {
-                return -1;
-            }
+            try { DomainSet.write(adsFile(c), ads); } catch (IOException e) { return -1; }
         }
-        if (!ok) return -1;
         loadFull(c);
         return blocked.size();
     }

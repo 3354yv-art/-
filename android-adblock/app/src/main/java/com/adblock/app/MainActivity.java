@@ -14,7 +14,6 @@ import android.provider.Settings;
 import android.view.Gravity;
 import android.view.View;
 import android.widget.Button;
-import android.widget.CheckBox;
 import android.widget.LinearLayout;
 import android.widget.ScrollView;
 import android.widget.TextView;
@@ -60,24 +59,6 @@ public class MainActivity extends Activity {
         cards = new LinearLayout(this);
         cards.setOrientation(LinearLayout.VERTICAL);
         root.addView(cards);
-
-        CheckBox aggr = new CheckBox(this);
-        aggr.setText("מצב אגרסיבי: חוסם עוד - טלמטריה של יצרני מכשירים, איומים ופישינג, "
-                + "מעקב מוסתר, ודומיינים בשם ads./telemetry. (עלול לשבור אתר; אז לחץ עליו ברשימה למטה)");
-        aggr.setChecked(Blocklist.aggressive(this));
-        aggr.setOnCheckedChangeListener((v, checked) -> {
-            Blocklist.setAggressive(this, checked);
-            new Thread(() -> {
-                Blocklist.loadFull(getApplicationContext());
-                AdBlockVpnService s = AdBlockVpnService.instance;
-                if (s != null) s.applyLists();
-                if (checked && Blocklist.isStale(getApplicationContext())) {
-                    Blocklist.update(getApplicationContext());
-                    if (s != null) s.applyLists();
-                }
-            }).start();
-        });
-        root.addView(aggr);
 
         update = new Button(this);
         update.setText("עדכן רשימות חסימה");

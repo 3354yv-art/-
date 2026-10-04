@@ -45,16 +45,16 @@ public class UnitTests {
         Set<String> s = new HashSet<>();
         String txt = "# comment\n0.0.0.0 ads.example.com\n127.0.0.1 localhost\n0.0.0.0 0.0.0.0\n"
                 + "plain.example.org\n||adnet.net^\n||img.adnet.net^$third-party\n@@||good.adnet.net^\n! c\n[Adblock]\n"
-                + "*.wild.example.net\n1.2.3.4\n0.0.0.0 Upper.Case.COM # trailing\n||bad-rule.com/path^\n";
+                + "*.wild.example.net\n1.2.3.4\n0.0.0.0 Upper.Case.COM # trailing\n||bad-rule.com/path^\n||tp.adnet.org^$third-party\n||img.adnet.org^$image\n";
         ListParser.parse(new ByteArrayInputStream(txt.getBytes("UTF-8")), s);
         check("parser: hosts line", s.contains("ads.example.com"));
         check("parser: plain domain", s.contains("plain.example.org"));
         check("parser: adblock ||d^", s.contains("adnet.net"));
-        check("parser: skips $modifier rules", !s.contains("img.adnet.net"));
+        check("parser: skips resource-type $modifier rules, keeps $third-party", s.contains("img.adnet.net") && !s.contains("img.adnet.org") && s.contains("tp.adnet.org"));
         check("parser: skips @@ exceptions", !s.contains("good.adnet.net"));
         check("parser: wildcard prefix", s.contains("wild.example.net"));
         check("parser: lowercases + trailing comment", s.contains("upper.case.com"));
-        check("parser: ignores localhost/0.0.0.0/IPs/paths", !s.contains("localhost") && !s.contains("0.0.0.0") && !s.contains("1.2.3.4") && s.size() == 5);
+        check("parser: ignores localhost/0.0.0.0/IPs/paths", !s.contains("localhost") && !s.contains("0.0.0.0") && !s.contains("1.2.3.4") && s.size() == 7);
 
         // ---- isBlocked
         Set<String> bl = new HashSet<>(Arrays.asList("adnet.net", "x.com")), al = new HashSet<>(Arrays.asList("ok.adnet.net"));
@@ -128,18 +128,6 @@ public class UnitTests {
         for (int i = 0; i < 1000000; i++) if (ds.contains("x" + r2.nextLong() + ".nothere.org")) fp++;
         check("domainset: no false positives in 1M probes", fp == 0);
 
-        // ---- heuristics
-        check("heuristic: ads.example.com", DnsCore.heuristicAd("ads.example.com") && DnsCore.heuristicAd("telemetry.app.io") && DnsCore.heuristicAd("x.ads.example.com"));
-        check("heuristic: leaves normal alone", !DnsCore.heuristicAd("ads.com") && !DnsCore.heuristicAd("www.example.com") && !DnsCore.heuristicAd("loads.example.com") && !DnsCore.heuristicAd("example.com"));
-        DnsEngine ag = new DnsEngine(q -> cnameResponse(q, "cdn.clean.org"), null, 1000, 10);
-        ag.setLists(new HashSet<String>(), new HashSet<String>(Arrays.asList("ads.good.com")));
-        byte[] rr = ag.handle(query("ads.example.com", 1));
-        check("engine: aggressive off -> passes", rr[r(rr)] == 1);
-        ag.setAggressive(true);
-        rr = ag.handle(query("ads.example.com", 1));
-        check("engine: aggressive on -> blocked 0.0.0.0", rr[rr.length - 1] == 0 && rr[rr.length - 4] == 0);
-        rr = ag.handle(query("ads.good.com", 1));
-        check("engine: allowlist beats heuristic", rr[rr.length - 4] == 1);
 
         System.out.println(fails == 0 ? "\nUNIT: ALL PASSED" : "\nUNIT: " + fails + " FAILED");
         System.exit(fails == 0 ? 0 : 1);

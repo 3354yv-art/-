@@ -27,7 +27,7 @@ final class ListParser {
             int caret = d.indexOf('^');
             if (caret < 0) return;
             String rest = d.substring(caret + 1);
-            if (!rest.isEmpty() && !rest.equals("$important")) return; // כללים עם מגבלות ($third-party, $script...)
+            if (!rest.isEmpty() && !harmless(rest)) return;      // כללים עם מגבלות סוג-משאב ($script, $image...) לא ברמת דומיין
             d = d.substring(0, caret).toLowerCase();
             if (valid(d)) out.add(d);
             return;
@@ -41,6 +41,15 @@ final class ListParser {
         if (d.startsWith("*.")) d = d.substring(2);
         d = d.toLowerCase();
         if (valid(d)) out.add(d);
+    }
+
+    /** $third-party / $important / $all - חוסמים את כל הדומיין, אז בטוח להשתמש בכלל כמו שהוא. */
+    private static boolean harmless(String mod) {
+        if (!mod.startsWith("$")) return false;
+        for (String m : mod.substring(1).split(",")) {
+            if (!(m.equals("third-party") || m.equals("3p") || m.equals("important") || m.equals("all"))) return false;
+        }
+        return true;
     }
 
     private static boolean valid(String d) {

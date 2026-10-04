@@ -149,7 +149,6 @@ public class AdBlockVpnService extends VpnService implements Forwarder.Env {
         DnsEngine e = engine;
         if (e == null) return;
         e.setLists(Blocklist.blocked(), Blocklist.allowed());
-        e.setAggressive(Blocklist.aggressive(this));
         Set<String> doh = new HashSet<>(Arrays.asList(DnsEngine.DOH_HOSTS));
         String spec = PrivateDns.specifier(this);
         if (spec != null) doh.remove(spec.toLowerCase());       // לא שוברים DNS פרטי שהמשתמש הגדיר

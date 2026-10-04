@@ -22,7 +22,7 @@ final class DnsEngine {
      * תשובת NXDOMAIN מכבה את ה-DoH שלהם והם חוזרים ל-DNS של המערכת (שלנו).
      */
     private static final Set<String> CANARY = new HashSet<>(Arrays.asList(
-            "use-application-dns.net", "mask.icloud.com", "mask-h2.icloud.com"));
+            "use-application-dns.net"));
 
     /** שרתי DoH/DoT ידועים: חסימתם מאלצת אפליקציות לחזור ל-DNS של המערכת. */
     static final String[] DOH_HOSTS = {
@@ -42,7 +42,6 @@ final class DnsEngine {
     private volatile Set<String> blocked = new HashSet<>();
     private volatile Set<String> allowed = new HashSet<>();
     private volatile Set<String> dohBlocked = new HashSet<>();
-    private volatile boolean aggressive = false;
 
     private final long ttlMs;
     private final int maxEntries;
@@ -69,14 +68,11 @@ final class DnsEngine {
     /** חוסם גם שמות DoH/DoT ידועים (except: מה שמשתמש הגדיר כ-Private DNS). */
     void setDohBlock(Set<String> hosts) { this.dohBlocked = hosts; }
 
-    /** מצב אגרסיבי: מוסיף חסימה היוריסטית לפי מילים כמו ads./telemetry. */
-    void setAggressive(boolean on) { this.aggressive = on; synchronized (cache) { cache.clear(); } }
-
     private boolean blockedName(String name) {
         Set<String> a = allowed;
         if (DnsCore.isBlocked(name, blocked, a)) return true;
         if (DnsCore.isBlocked(name, dohBlocked, a)) return true;
-        return aggressive && DnsCore.heuristicAd(name) && !DnsCore.isAllowed(name, a);
+        return false;
     }
 
     /** מעבד שאילתת DNS ומחזיר תמיד תשובה תקינה (במקרה של כשל - SERVFAIL). */
