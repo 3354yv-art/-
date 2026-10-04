@@ -132,11 +132,15 @@ public class AdBlockVpnService extends VpnService implements Forwarder.Env {
         loop = new Thread(() -> readLoop(in, handler), "adblock-tun");
         loop.start();
 
-        // עדכון רשימות ברקע: טעינה מלאה מיד, והורדה אם הרשימה ישנה/חסרה
+        // רשימות ברקע: טעינה מלאה (בינארית, מהירה) מיד; ובדיקת עדכון כל כמה שעות כל עוד פעיל
         new Thread(() -> {
-            Blocklist.loadFull(getApplicationContext());
+            Context app = getApplicationContext();
+            Blocklist.loadFull(app);
             applyLists();
-            if (Blocklist.isStale(getApplicationContext()) && Blocklist.update(getApplicationContext()) > 0) applyLists();
+            while (running) {
+                if (Blocklist.isStale(app) && Blocklist.update(app) > 0) applyLists();
+                try { Thread.sleep(6L * 3600 * 1000); } catch (InterruptedException e) { return; }
+            }
         }, "adblock-lists").start();
     }
 
@@ -145,6 +149,7 @@ public class AdBlockVpnService extends VpnService implements Forwarder.Env {
         DnsEngine e = engine;
         if (e == null) return;
         e.setLists(Blocklist.blocked(), Blocklist.allowed());
+        e.setAggressive(Blocklist.aggressive(this));
         Set<String> doh = new HashSet<>(Arrays.asList(DnsEngine.DOH_HOSTS));
         String spec = PrivateDns.specifier(this);
         if (spec != null) doh.remove(spec.toLowerCase());       // לא שוברים DNS פרטי שהמשתמש הגדיר

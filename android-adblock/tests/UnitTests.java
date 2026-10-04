@@ -38,6 +38,8 @@ public class UnitTests {
         return o.toByteArray();
     }
 
+    static int r(byte[] x) { return x.length - 4; }
+
     public static void main(String[] a) throws Exception {
         // ---- ListParser
         Set<String> s = new HashSet<>();
@@ -102,6 +104,42 @@ public class UnitTests {
             try { ph.handle(junk, junk.length); } catch (Throwable t) { threw = true; t.printStackTrace(); }
         }
         check("fuzz: 30000 random IP packets never throw", !threw);
+
+
+        // ---- DomainSet (hash set) + קובץ בינארי
+        DomainSet.Builder bb = new DomainSet.Builder();
+        for (int i = 0; i < 200000; i++) bb.add("host" + i + ".example.net");
+        bb.add("host5.example.net"); bb.add("ads.tracker.io");
+        long[] hs = bb.build();
+        check("domainset: dedupe + sorted", hs.length == 200001 + 0 || hs.length == 200001);
+        java.io.File tf = java.io.File.createTempFile("dset", ".bin");
+        DomainSet.write(tf, hs);
+        long[] back = DomainSet.read(tf);
+        DomainSet ds = new DomainSet(back);
+        check("domainset: roundtrip", back != null && Arrays.equals(hs, back));
+        check("domainset: contains/doesn't", ds.contains("host199999.example.net") && ds.contains("ads.tracker.io") && !ds.contains("host200000.example.net") && !ds.contains("tracker.io"));
+        check("domainset: works with isBlocked (subdomains)", DnsCore.isBlocked("a.b.ads.tracker.io", ds, new HashSet<String>()));
+        DomainSet two = ds.with(new DomainSet(new long[]{DomainSet.hash("zzz.org")}));
+        check("domainset: union of parts", two.contains("zzz.org") && two.contains("ads.tracker.io") && two.size() == ds.size() + 1);
+        tf.delete();
+        java.io.File bad = java.io.File.createTempFile("bad", ".bin"); java.nio.file.Files.write(bad.toPath(), new byte[]{1, 2, 3, 4, 5, 6, 7, 8, 9});
+        check("domainset: corrupt file -> null", DomainSet.read(bad) == null); bad.delete();
+        int fp = 0; Random r2 = new Random(7);
+        for (int i = 0; i < 1000000; i++) if (ds.contains("x" + r2.nextLong() + ".nothere.org")) fp++;
+        check("domainset: no false positives in 1M probes", fp == 0);
+
+        // ---- heuristics
+        check("heuristic: ads.example.com", DnsCore.heuristicAd("ads.example.com") && DnsCore.heuristicAd("telemetry.app.io") && DnsCore.heuristicAd("x.ads.example.com"));
+        check("heuristic: leaves normal alone", !DnsCore.heuristicAd("ads.com") && !DnsCore.heuristicAd("www.example.com") && !DnsCore.heuristicAd("loads.example.com") && !DnsCore.heuristicAd("example.com"));
+        DnsEngine ag = new DnsEngine(q -> cnameResponse(q, "cdn.clean.org"), null, 1000, 10);
+        ag.setLists(new HashSet<String>(), new HashSet<String>(Arrays.asList("ads.good.com")));
+        byte[] rr = ag.handle(query("ads.example.com", 1));
+        check("engine: aggressive off -> passes", rr[r(rr)] == 1);
+        ag.setAggressive(true);
+        rr = ag.handle(query("ads.example.com", 1));
+        check("engine: aggressive on -> blocked 0.0.0.0", rr[rr.length - 1] == 0 && rr[rr.length - 4] == 0);
+        rr = ag.handle(query("ads.good.com", 1));
+        check("engine: allowlist beats heuristic", rr[rr.length - 4] == 1);
 
         System.out.println(fails == 0 ? "\nUNIT: ALL PASSED" : "\nUNIT: " + fails + " FAILED");
         System.exit(fails == 0 ? 0 : 1);

@@ -24,11 +24,23 @@ jobs:
           distribution: temurin
           java-version: "17"
 
+      - name: Verify blocklist sources are reachable
+        continue-on-error: true
+        run: |
+          grep -ohE 'https://[^"]+' app/src/main/java/com/adblock/app/Blocklist.java | sort -u | while read u; do
+            u=$(echo "$u" | sed 's/" *+.*//')
+            echo "$(curl -s -L -m 60 -o /tmp/l.txt -w '%{http_code}' "$u") $(wc -l < /tmp/l.txt) lines  $u"
+          done
+          echo "hagezi lists:"
+          for n in pro ultimate tif.medium popupads native.xiaomi native.samsung native.huawei native.oppo-realme native.vivo; do
+            echo "$(curl -s -L -m 60 -o /tmp/l.txt -w '%{http_code}' https://raw.githubusercontent.com/hagezi/dns-blocklists/main/hosts/$n.txt) $(wc -l < /tmp/l.txt) lines  $n"
+          done
+
       - name: Core tests (unit)
         run: |
           SRC=app/src/main/java/com/adblock/app
           mkdir -p /tmp/out
-          javac -Xlint:all -d /tmp/out $SRC/{DnsCore,DnsEngine,PacketHandler,Forwarder,ListParser}.java tests/UnitTests.java tests/Bridge.java
+          javac -Xlint:all -d /tmp/out $SRC/{DnsCore,DnsEngine,PacketHandler,Forwarder,ListParser,DomainSet}.java tests/UnitTests.java tests/Bridge.java
           java -cp /tmp/out com.adblock.app.UnitTests
 
       - name: Core tests (end-to-end over a real tun device)

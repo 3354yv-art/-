@@ -54,6 +54,37 @@ final class DnsCore {
         return verdict;
     }
 
+    /** מילים שבתחילת שם הדומיין כמעט תמיד מסמנות פרסום/מעקב (מצב אגרסיבי בלבד). */
+    private static final Set<String> AD_LABELS = new java.util.HashSet<>(java.util.Arrays.asList(
+            "ads", "ad", "adserver", "adservice", "adservices", "adsrv", "adtrack", "adtracking", "adx",
+            "tracking", "tracker", "trackers", "telemetry", "beacon", "beacons", "pixel", "pixels",
+            "banners", "banner", "popads", "popunder", "analytics-api", "metrics-api"));
+
+    /** היוריסטיקה: ads.example.com, telemetry.app.io וכו'. דורש לפחות 3 תוויות (לא נוגעים בדומיין ראשי). */
+    static boolean heuristicAd(String name) {
+        String n = name.toLowerCase();
+        if (n.endsWith(".")) n = n.substring(0, n.length() - 1);
+        String[] l = n.split("\\.");
+        if (l.length < 3) return false;
+        if (AD_LABELS.contains(l[0])) return true;
+        return l.length >= 4 && AD_LABELS.contains(l[1]);
+    }
+
+    /** האם השם (או הורה שלו) ברשימה הלבנה. */
+    static boolean isAllowed(String name, Set<String> allowed) {
+        String n = name.toLowerCase();
+        if (n.endsWith(".")) n = n.substring(0, n.length() - 1);
+        int i = 0;
+        while (true) {
+            String suffix = n.substring(i);
+            if (suffix.indexOf('.') < 0) return false;
+            if (allowed.contains(suffix)) return true;
+            int dot = n.indexOf('.', i);
+            if (dot < 0) return false;
+            i = dot + 1;
+        }
+    }
+
     /** תשובת DNS מזויפת: 0.0.0.0 ל-A, :: ל-AAAA, ריקה לשאר. */
     static byte[] blockedReply(byte[] q, int off, Question qs) {
         boolean a = qs.type == 1, aaaa = qs.type == 28;

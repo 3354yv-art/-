@@ -14,13 +14,33 @@ import java.util.HashSet;
 import java.util.Set;
 import java.util.TreeSet;
 
-/** ניהול רשימות: חסימה (מורדת + מובנית), ורשימה לבנה (מובנית + של המשתמש). */
+/** ניהול רשימות: חסימה רגילה + אגרסיבית (נשמרות כקבצי hash בינאריים), ורשימה לבנה. */
 final class Blocklist {
-    static final String[] SOURCES = {
-            "https://raw.githubusercontent.com/StevenBlack/hosts/master/hosts",
-            "https://adaway.org/hosts.txt",
-            "https://adguardteam.github.io/AdGuardSDNSFilter/Filters/filter.txt",
-            "https://raw.githubusercontent.com/hagezi/dns-blocklists/main/hosts/pro.txt",
+    private static final String GZ = "https://raw.githubusercontent.com/hagezi/dns-blocklists/main/hosts/";
+    private static final String GZ_MIRROR = "https://cdn.jsdelivr.net/gh/hagezi/dns-blocklists@latest/hosts/";
+
+    private static String[] hagezi(String name) { return new String[]{GZ + name, GZ_MIRROR + name}; }
+
+    /** כל רשומה = כתובת ראשית + מראות (mirrors) אם הראשית נכשלה. */
+    static final String[][] STANDARD = {
+            {"https://raw.githubusercontent.com/StevenBlack/hosts/master/hosts"},
+            {"https://adaway.org/hosts.txt"},
+            {"https://adguardteam.github.io/AdGuardSDNSFilter/Filters/filter.txt",
+             "https://raw.githubusercontent.com/AdguardTeam/AdGuardSDNSFilter/master/Filters/filter.txt"},
+            hagezi("pro.txt"),
+    };
+
+    /** מצב אגרסיבי: ultimate, טלמטריה של יצרני מכשירים, איומים/פישינג, CNAME מוסתר, פופאפים. */
+    static final String[][] AGGRESSIVE = {
+            hagezi("ultimate.txt"),
+            hagezi("tif.medium.txt"),
+            hagezi("popupads.txt"),
+            hagezi("native.xiaomi.txt"),
+            hagezi("native.samsung.txt"),
+            hagezi("native.huawei.txt"),
+            hagezi("native.oppo-realme.txt"),
+            hagezi("native.vivo.txt"),
+            {"https://raw.githubusercontent.com/nextdns/cname-cloaking-blocklist/master/domains"},
     };
 
     /** דומיינים שלעולם לא נחסמים - בדיקות חיבור/Captive portal, וכתובות העדכון של הרשימות. */
@@ -29,11 +49,12 @@ final class Blocklist {
             "clients1.google.com", "clients4.google.com", "time.android.com", "captive.apple.com",
             "www.msftconnecttest.com", "dns.msftncsi.com", "detectportal.firefox.com",
             "raw.githubusercontent.com", "github.com", "adaway.org", "adguardteam.github.io",
+            "cdn.jsdelivr.net",
     };
 
-    private static final long STALE_MS = 7L * 24 * 3600 * 1000;
+    private static final long STALE_MS = 24L * 3600 * 1000;
 
-    private static volatile Set<String> blocked = new HashSet<>();
+    private static volatile DomainSet blocked = DomainSet.EMPTY;
     private static volatile Set<String> allowed = new HashSet<>(Arrays.asList(NEVER_BLOCK));
     private static final Object lock = new Object();
 
@@ -43,31 +64,47 @@ final class Blocklist {
     static Set<String> allowed() { return allowed; }
     static int size() { return blocked.size(); }
 
-    private static File file(Context c) { return new File(c.getFilesDir(), "blocklist.txt"); }
+    private static File stdFile(Context c) { return new File(c.getFilesDir(), "std.bin"); }
+    private static File aggrFile(Context c) { return new File(c.getFilesDir(), "aggr.bin"); }
     private static File userAllowFile(Context c) { return new File(c.getFilesDir(), "allowlist.txt"); }
 
+    static boolean aggressive(Context c) {
+        return c.getSharedPreferences(AdBlockVpnService.PREFS, Context.MODE_PRIVATE).getBoolean("aggressive", true);
+    }
+
+    static void setAggressive(Context c, boolean on) {
+        c.getSharedPreferences(AdBlockVpnService.PREFS, Context.MODE_PRIVATE).edit().putBoolean("aggressive", on).apply();
+    }
+
     static boolean isStale(Context c) {
-        File f = file(c);
-        return !f.exists() || System.currentTimeMillis() - f.lastModified() > STALE_MS;
+        File f = stdFile(c);
+        if (!f.exists() || System.currentTimeMillis() - f.lastModified() > STALE_MS) return true;
+        return aggressive(c) && !aggrFile(c).exists();
+    }
+
+    private static long[] builtin(Context c) {
+        DomainSet.Builder b = new DomainSet.Builder();
+        try (InputStream in = c.getAssets().open("builtin.txt")) { ListParser.parse(in, b); } catch (IOException ignored) { }
+        return b.build();
     }
 
     /** טעינה מהירה של הרשימה המובנית בלבד (כדי שה-VPN יעבוד מיד). */
     static void loadBuiltin(Context c) {
-        Set<String> set = new HashSet<>();
-        try (InputStream in = c.getAssets().open("builtin.txt")) { ListParser.parse(in, set); } catch (IOException ignored) { }
-        blocked = set;
+        blocked = new DomainSet(builtin(c));
         loadAllowed(c);
     }
 
-    /** טעינה מלאה: הרשימה שהורדה (אם קיימת) + המובנית + הרשימה הלבנה. */
+    /** טעינה מלאה: מובנית + רגילה + (אם אגרסיבי) האגרסיבית. טעינה בינארית - אלפיות שנייה. */
     static void loadFull(Context c) {
-        Set<String> set = new HashSet<>();
-        try (InputStream in = c.getAssets().open("builtin.txt")) { ListParser.parse(in, set); } catch (IOException ignored) { }
-        File f = file(c);
-        if (f.exists()) {
-            try (InputStream in = new FileInputStream(f)) { ListParser.parse(in, set); } catch (IOException ignored) { }
+        new File(c.getFilesDir(), "blocklist.txt").delete(); // פורמט ישן
+        DomainSet s = new DomainSet(builtin(c));
+        long[] std = DomainSet.read(stdFile(c));
+        if (std != null) s = s.with(new DomainSet(std));
+        if (aggressive(c)) {
+            long[] ag = DomainSet.read(aggrFile(c));
+            if (ag != null) s = s.with(new DomainSet(ag));
         }
-        blocked = set;
+        blocked = s;
         loadAllowed(c);
     }
 
@@ -101,37 +138,44 @@ final class Blocklist {
         }
     }
 
-    /** מוריד את כל המקורות ומאחד. מחזיר מספר דומיינים, או -1 אם כולם נכשלו. */
-    static int update(Context c) {
-        Set<String> all = new HashSet<>();
-        for (String src : SOURCES) {
-            try {
-                HttpURLConnection con = (HttpURLConnection) new URL(src).openConnection();
-                con.setConnectTimeout(15000);
-                con.setReadTimeout(40000);
-                con.setRequestProperty("User-Agent", "AdBlock-Android");
-                Set<String> part = new HashSet<>();
-                try (InputStream in = con.getInputStream()) { ListParser.parse(in, part); }
-                if (part.size() > 500) all.addAll(part);
-            } catch (Exception ignored) { }
+    /** מוריד קבוצת מקורות; לכל מקור מנסה את הכתובת הראשית ואז מראות. מחזיר את ה-hashes הממוינים. */
+    private static long[] download(String[][] group) {
+        DomainSet.Builder all = new DomainSet.Builder();
+        for (String[] urls : group) {
+            for (String src : urls) {
+                DomainSet.Builder part = new DomainSet.Builder();
+                try {
+                    HttpURLConnection con = (HttpURLConnection) new URL(src).openConnection();
+                    con.setConnectTimeout(15000);
+                    con.setReadTimeout(60000);
+                    con.setRequestProperty("User-Agent", "AdBlock-Android");
+                    if (con.getResponseCode() != 200) continue;
+                    try (InputStream in = con.getInputStream()) { ListParser.parse(in, part); }
+                } catch (Exception e) {
+                    continue;
+                }
+                if (part.size() < 50) continue;
+                for (long h : part.build()) all.addHash(h);
+                break; // המקור הצליח - לא צריך מראה
+            }
         }
-        if (all.size() < 1000) return -1;
+        return all.build();
+    }
+
+    /** מוריד הכל. מחזיר את מספר הדומיינים הכולל, או -1 אם שום דבר לא ירד. */
+    static int update(Context c) {
+        long[] std = download(STANDARD);
+        long[] ag = download(AGGRESSIVE);
+        boolean ok = false;
         synchronized (lock) {
             try {
-                File tmp = new File(c.getFilesDir(), "blocklist.tmp");
-                try (FileOutputStream out = new FileOutputStream(tmp)) {
-                    StringBuilder sb = new StringBuilder(all.size() * 20);
-                    for (String d : all) sb.append(d).append('\n');
-                    out.write(sb.toString().getBytes("UTF-8"));
-                }
-                if (!tmp.renameTo(file(c))) {
-                    file(c).delete();
-                    if (!tmp.renameTo(file(c))) return -1;
-                }
+                if (std.length >= 1000) { DomainSet.write(stdFile(c), std); ok = true; }
+                if (ag.length >= 100) { DomainSet.write(aggrFile(c), ag); ok = true; }
             } catch (IOException e) {
                 return -1;
             }
         }
+        if (!ok) return -1;
         loadFull(c);
         return blocked.size();
     }
