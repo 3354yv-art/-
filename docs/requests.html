@@ -1,0 +1,110 @@
+<!doctype html>
+<html lang="he" dir="rtl">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>בקשות למתנדבים</title>
+<style>
+  :root {
+    --text: #1f1f2e;
+    --muted: #6b6b7b;
+    --accent: #7c5cff;
+    --accent-soft: #e9e2ff;
+    --amber: #f0a93b;
+    --amber-soft: #fff1d6;
+    --line: #e4e4ea;
+    --card: #fff;
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0;
+    min-height: 100vh;
+    font-family: "Heebo", "Assistant", system-ui, sans-serif;
+    color: var(--text);
+    background: linear-gradient(135deg, #e9f4f1 0%, #f4f2fb 35%, #ddd6f6 100%);
+  }
+  .page { max-width: 1100px; margin: 0 auto; padding: 24px 16px 48px; }
+  header { display: flex; justify-content: space-between; align-items: flex-start; gap: 16px; flex-wrap: wrap; }
+  .intro p { margin: 0; }
+  .intro .lead { font-size: 18px; color: #555; }
+  .intro .lead b { color: var(--amber); font-weight: 500; }
+  .intro .sub { font-size: 13px; color: var(--muted); margin-top: 6px; }
+  .new-btn {
+    display: inline-flex; align-items: center; gap: 8px;
+    background: var(--accent); color: #fff; border: 0; cursor: pointer;
+    font: inherit; font-weight: 600; padding: 10px 22px; border-radius: 14px;
+    box-shadow: 0 6px 16px rgba(124, 92, 255, .35);
+  }
+  .new-btn:hover { filter: brightness(1.08); }
+
+  .card {
+    margin-top: 28px;
+    background: var(--card);
+    border-radius: 22px;
+    padding: 24px 26px 18px;
+    box-shadow: 0 10px 30px rgba(60, 40, 120, .18);
+  }
+  .card-top { display: flex; justify-content: space-between; align-items: flex-start; gap: 12px; flex-wrap: wrap; }
+  .title-row { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; }
+  .title-row h2 { margin: 0; font-size: 20px; font-weight: 700; }
+  .badge {
+    background: var(--amber-soft); color: var(--amber);
+    font-size: 12px; padding: 4px 14px; border-radius: 999px; font-weight: 500;
+  }
+  .meta { margin: 8px 0 0; font-size: 13px; color: var(--muted); }
+  .volunteer-btn {
+    display: inline-flex; align-items: center; gap: 8px;
+    background: var(--accent-soft); color: var(--accent);
+    border: 0; cursor: pointer; font: inherit; font-size: 14px; font-weight: 600;
+    padding: 10px 18px; border-radius: 14px;
+  }
+  .volunteer-btn[aria-pressed="true"] { background: var(--accent); color: #fff; }
+  hr { border: 0; border-top: 1px solid var(--line); margin: 18px 0 14px; }
+  .comments { display: inline-flex; align-items: center; gap: 8px; font-size: 14px; font-weight: 500; background: none; border: 0; cursor: pointer; font-family: inherit; color: var(--text); padding: 0; }
+  svg { width: 16px; height: 16px; fill: none; stroke: currentColor; stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; }
+</style>
+</head>
+<body>
+<div class="page">
+  <header>
+    <div class="intro">
+      <p class="lead">מבקשים אפליקציה או תוכנה? הדביקו קישור לבקשה מפורום חיצוני, ומתנדב יוריד ויעלה אותה עבורכם. <b>· 29 בקשות פתוחות למתנדבים</b></p>
+      <p class="sub">אפשר להתנדב לבקשה אחת בכל פעם. יש שבוע לסמן "בוצעה" - אחרת הבקשה חוזרת לכולם. סימון "בוצעה" עובר לאישור צוות הפיקוח.</p>
+    </div>
+    <button class="new-btn" type="button">
+      <svg viewBox="0 0 24 24"><path d="M12 5v14M5 12h14"/></svg>
+      בקשה חדשה
+    </button>
+  </header>
+
+  <article class="card">
+    <div class="card-top">
+      <div>
+        <div class="title-row">
+          <h2>גוגל מפות עבור אופליין כמובן</h2>
+          <span class="badge">פתוחה למתנדבים</span>
+        </div>
+        <p class="meta">ביקש/ה: a039724907</p>
+      </div>
+      <button class="volunteer-btn" type="button" aria-pressed="false" id="vol">
+        <svg viewBox="0 0 24 24"><path d="M2 12s4-7 10-7 10 7 10 7-4 7-10 7-10-7-10-7z"/><circle cx="12" cy="12" r="3"/></svg>
+        <span>אני מתנדב/ת</span>
+      </button>
+    </div>
+    <hr>
+    <button class="comments" type="button">
+      <svg viewBox="0 0 24 24"><path d="M21 12a8 8 0 0 1-11.6 7.1L3 21l1.9-5.4A8 8 0 1 1 21 12z"/></svg>
+      תגובות
+    </button>
+  </article>
+</div>
+<script>
+  const vol = document.getElementById('vol');
+  vol.addEventListener('click', () => {
+    const on = vol.getAttribute('aria-pressed') !== 'true';
+    vol.setAttribute('aria-pressed', on);
+    vol.querySelector('span').textContent = on ? 'התנדבת ✓' : 'אני מתנדב/ת';
+  });
+</script>
+</body>
+</html>
